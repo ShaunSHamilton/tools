@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::team_board::{
     app::AppState,
     error::ApiError,
-    models::{session::Session, user::User},
+    models::{org::Org, session::Session, user::User},
 };
 
 const GITHUB_ORG: &str = "freeCodeCamp";
@@ -100,7 +100,12 @@ pub async fn github_callback(
         ApiError::Internal
     })?;
 
-    // 6. Create a session and set the cookie.
+    // 6. Ensure the user is a member of the freeCodeCamp org.
+    if let Err(e) = Org::ensure_freecodecamp_membership(&state.db, user.id).await {
+        tracing::warn!(error = %e, "failed to ensure freeCodeCamp org membership");
+    }
+
+    // 7. Create a session and set the cookie.
     let ttl = state.config.session_ttl_in_s as i64;
     let session_id = Uuid::new_v4().to_string();
     let expires_at = {

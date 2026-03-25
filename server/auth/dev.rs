@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::team_board::{
     app::AppState,
     error::ApiError,
-    models::{notification::Notification, session::Session, user::User},
+    models::{notification::Notification, org::Org, session::Session, user::User},
 };
 
 use super::ApiUser;
@@ -38,6 +38,10 @@ pub async fn dev_login(
 
     if let Err(e) = Notification::backfill_pending_invites(&state.db, user.id, &user.email).await {
         tracing::warn!(error = %e, "failed to backfill invite notifications");
+    }
+
+    if let Err(e) = Org::ensure_freecodecamp_membership(&state.db, user.id).await {
+        tracing::warn!(error = %e, "failed to ensure freeCodeCamp org membership");
     }
 
     let session_id = Uuid::new_v4().to_string();

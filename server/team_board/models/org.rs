@@ -35,9 +35,45 @@ pub struct OrgMember {
     pub joined_at: DateTime,
 }
 
+const FCC_NAME: &str = "freeCodeCamp";
+const FCC_SLUG: &str = "freecodecamp";
+
 impl Org {
     fn collection(db: &Database) -> Collection<Org> {
         db.collection("organisations")
+    }
+
+    /// Ensures the user is a member of the freeCodeCamp org, creating the org
+    /// if it doesn't exist yet. The first user to register becomes an admin;
+    /// subsequent users are added as regular members.
+    pub async fn ensure_freecodecamp_membership(
+        db: &Database,
+        user_id: ObjectId,
+    ) -> mongodb::error::Result<()> {
+        let org = match Self::collection(db)
+            .find_one(doc! { "slug": FCC_SLUG })
+            .await?
+        {
+            Some(org) => org,
+            None => {
+                let org = Org {
+                    id: ObjectId::new(),
+                    name: FCC_NAME.to_string(),
+                    slug: FCC_SLUG.to_string(),
+                    created_by: user_id,
+                    created_at: DateTime::now(),
+                };
+                Self::collection(db).insert_one(&org).await?;
+                OrgMember::add(db, org.id, user_id, Role::Admin).await?;
+                return Ok(());
+            }
+        };
+
+        if OrgMember::find(db, &org.id, &user_id).await?.is_none() {
+            OrgMember::add(db, org.id, user_id, Role::Member).await?;
+        }
+
+        Ok(())
     }
 
     pub async fn create(
