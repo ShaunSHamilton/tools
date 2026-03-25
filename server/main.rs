@@ -1,10 +1,9 @@
-use anyhow::Context;
 use std::net::SocketAddr;
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
     dotenvy::dotenv().ok();
 
     // Global tracing subscriber (only one per process)
@@ -40,9 +39,7 @@ async fn main() -> anyhow::Result<()> {
         None
     };
 
-    let ec_router = server::exam_creator::app::app(ec_env_vars)
-        .await
-        .context("creating exam-creator router")?;
+    let ec_router = server::exam_creator::app::app(ec_env_vars).await.unwrap();
 
     // ── Team Board ──────────────────────────────────────────────────────────
     info!("Initialising team-board…");
@@ -63,9 +60,7 @@ async fn main() -> anyhow::Result<()> {
         );
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .context("binding port")?;
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
     info!(
         "Server listening on 0.0.0.0:{} (accessible from any interface)",
@@ -73,7 +68,41 @@ async fn main() -> anyhow::Result<()> {
     );
     info!("Application: http://127.0.0.1:{port}");
 
-    axum::serve(listener, app).await.context("serving")?;
+    let server = axum::serve(listener, app);
 
-    Ok(())
+    // Create shutdown signal handler
+    let shutdown_signal = async {
+        let ctrl_c = async {
+            tokio::signal::ctrl_c()
+                .await
+                .expect("failed to install Ctrl+C handler");
+        };
+
+        #[cfg(unix)]
+        let terminate = async {
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .expect("failed to install SIGTERM handler")
+                .recv()
+                .await;
+        };
+
+        #[cfg(not(unix))]
+        let terminate = std::future::pending::<()>();
+
+        tokio::select! {
+            _ = ctrl_c => {
+                info!("Received SIGINT (Ctrl+C), starting graceful shutdown...");
+            },
+            _ = terminate => {
+                info!("Received SIGTERM, starting graceful shutdown...");
+            },
+        }
+    };
+
+    // Run server with graceful shutdown
+    if let Err(err) = server.with_graceful_shutdown(shutdown_signal).await {
+        tracing::error!("Server error: {}", err);
+    }
+
+    info!("Server shutdown complete.");
 }
