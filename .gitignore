@@ -1,0 +1,21 @@
+# Rust
+target/
+Cargo.lock
+
+# Frontend build outputs
+dist/
+node_modules/
+
+# Dist (built into Rust build for embedding)
+dist/
+
+# Environment
+.env
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
