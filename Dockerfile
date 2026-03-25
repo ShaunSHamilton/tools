@@ -20,8 +20,10 @@ COPY public/ public/
 # Build frontend
 RUN bun run build
 
-FROM rust:1 AS builder
+FROM rust:1-alpine AS builder
 WORKDIR /app
+
+RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconf
 
 COPY server/ server/
 COPY prisma/ prisma/
@@ -29,16 +31,12 @@ COPY Cargo.toml Cargo.lock ./
 # Copy frontend build to the 'dist' directory for the server to use
 COPY --from=frontend_builder /app/dist /app/dist
 
-# Build application
-RUN cargo build --release
+# Build application with static linking via musl
+RUN OPENSSL_STATIC=1 RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target x86_64-unknown-linux-musl
 
-# FROM gcr.io/distroless/cc-debian12 AS runtime
 FROM debian:bookworm-slim AS runtime
-# Install runtime dependencies for Rust binary (OpenSSL for reqwest/oauth2/mongodb)
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends \
-        openssl \
-        ca-certificates && \
+    apt-get install -y --no-install-recommends ca-certificates && \
     apt-get autoremove -y && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/*
@@ -51,7 +49,7 @@ LABEL org.opencontainers.image.title="tools" \
       org.opencontainers.image.licenses="BSD-3-Clause"
 
 # Copy the compiled application from the builder stage
-COPY --from=builder /app/target/release/server /server
+COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/server /server
 # Copy static assets from the 'dist' directory
 COPY --from=builder /app/dist /dist
 
