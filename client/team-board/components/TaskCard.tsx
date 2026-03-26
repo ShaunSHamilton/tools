@@ -1,5 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { Pencil, Trash2 } from 'lucide-react'
+import * as Tooltip from '@radix-ui/react-tooltip'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Task } from '../hooks/useTasks'
@@ -107,9 +109,19 @@ export function TaskCard({ task, orgId, onEdit, onDelete, onOpen }: Props) {
           >
             {task.title}
           </button>
-          {task.description && (
+          {task.url ? (
+            <a
+              href={task.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-blue-500 dark:text-blue-400 underline mt-1 block truncate"
+            >
+              {task.url}
+            </a>
+          ) : task.description ? (
             <DescriptionPreview text={task.description} />
-          )}
+          ) : null}
           <div className="flex items-center justify-between mt-2">
             <span
               className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${STATUS_COLORS[task.status]}`}
@@ -162,18 +174,46 @@ export function TaskCard({ task, orgId, onEdit, onDelete, onOpen }: Props) {
 
               {/* Edit / Delete / Drag — shown on hover */}
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button
-                  onClick={() => onEdit(task)}
-                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors px-1"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => onDelete(task.id)}
-                  className="text-xs text-red-400 dark:text-red-700 hover:text-red-600 dark:hover:text-red-400 transition-colors px-1"
-                >
-                  Del
-                </button>
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <button
+                      onClick={() => onEdit(task)}
+                      className="p-0.5 text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors hover:scale-110"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-gray-900 dark:bg-gray-700 text-white text-xs px-1.5 py-0.5 rounded shadow-md z-50"
+                      sideOffset={4}
+                    >
+                      Edit
+                      <Tooltip.Arrow className="fill-gray-900 dark:fill-gray-700" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+
+                <Tooltip.Root>
+                  <Tooltip.Trigger asChild>
+                    <button
+                      onClick={() => onDelete(task.id)}
+                      className="p-0.5 text-red-400 dark:text-red-700 hover:text-red-600 dark:hover:text-red-400 transition-colors hover:scale-110"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </Tooltip.Trigger>
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="bg-gray-900 dark:bg-gray-700 text-white text-xs px-1.5 py-0.5 rounded shadow-md z-50"
+                      sideOffset={4}
+                    >
+                      Delete
+                      <Tooltip.Arrow className="fill-gray-900 dark:fill-gray-700" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                </Tooltip.Root>
+
                 <span
                   {...attributes}
                   {...listeners}

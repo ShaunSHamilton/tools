@@ -31,6 +31,7 @@ pub struct CreateTaskRequest {
     pub assignee_id: String,
     pub title: String,
     pub description: Option<String>,
+    pub url: Option<String>,
     pub color: Option<String>,
     pub collaborator_ids: Option<Vec<String>>,
 }
@@ -39,6 +40,7 @@ pub struct CreateTaskRequest {
 pub struct UpdateTaskRequest {
     pub title: Option<String>,
     pub description: Option<Option<String>>,
+    pub url: Option<Option<String>>,
     pub status: Option<String>,
     pub drop_reason: Option<Option<String>>,
     pub color: Option<String>,
@@ -60,6 +62,7 @@ pub struct ApiTask {
     pub created_by: String,
     pub title: String,
     pub description: Option<String>,
+    pub url: Option<String>,
     pub status: String,
     pub drop_reason: Option<String>,
     pub color: String,
@@ -87,6 +90,7 @@ impl<'a> From<ApiTaskContext<'a>> for ApiTask {
             created_by: t.created_by.to_hex(),
             title: t.title.clone(),
             description: t.description.clone(),
+            url: t.url.clone(),
             status: match t.status {
                 TaskStatus::Idea => "idea",
                 TaskStatus::InProgress => "in_progress",
@@ -208,6 +212,7 @@ pub async fn create_task(
         user_id.0,
         title,
         body.description,
+        body.url,
         color,
         collaborator_oids,
     )
@@ -324,6 +329,7 @@ pub async fn update_task(
         &task_oid,
         body.title.map(|t| t.trim().to_string()),
         body.description,
+        body.url,
         new_status,
         drop_reason_override,
         body.color,

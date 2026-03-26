@@ -22,6 +22,7 @@ interface Props {
   onSave: (data: {
     title: string
     description: string | null
+    url: string | null
     color: string
     collaborator_ids: string[]
   }) => Promise<void>
@@ -32,6 +33,7 @@ interface Props {
 export function TaskFormModal({ task, onSave, onClose, isSaving, members = [] }: Props) {
   const [title, setTitle] = useState(task?.title ?? '')
   const [description, setDescription] = useState(task?.description ?? '')
+  const [url, setUrl] = useState(task?.url ?? '')
   const [color, setColor] = useState(task?.color ?? '#6366f1')
   const [descTab, setDescTab] = useState<'edit' | 'preview'>('edit')
   const [collaboratorIds, setCollaboratorIds] = useState<string[]>(
@@ -61,6 +63,7 @@ export function TaskFormModal({ task, onSave, onClose, isSaving, members = [] }:
       await onSave({
         title: title.trim(),
         description: description.trim() || null,
+        url: url.trim() || null,
         color,
         collaborator_ids: collaboratorIds,
       })
@@ -162,6 +165,16 @@ export function TaskFormModal({ task, onSave, onClose, isSaving, members = [] }:
                 )}
               </div>
             )}
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">URL</label>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="w-full bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 dark:focus:border-gray-500"
+              placeholder="https://…"
+            />
           </div>
           {members.length > 0 && (
             <div>

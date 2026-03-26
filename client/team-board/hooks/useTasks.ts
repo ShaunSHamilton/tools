@@ -15,6 +15,7 @@ export interface Task {
   created_by: string
   title: string
   description: string | null
+  url: string | null
   status: 'idea' | 'in_progress' | 'complete' | 'dropped'
   drop_reason: string | null
   color: string
@@ -41,6 +42,7 @@ export function useCreateTask(orgId: string) {
       assignee_id: string
       title: string
       description?: string
+      url?: string | null
       color?: string
       collaborator_ids?: string[]
     }) =>
@@ -63,6 +65,7 @@ export function useUpdateTask(orgId: string) {
       taskId: string
       title?: string
       description?: string | null
+      url?: string | null
       status?: string
       drop_reason?: string | null
       color?: string

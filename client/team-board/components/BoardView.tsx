@@ -83,7 +83,7 @@ function MemberColumn({
 
       <div
         ref={setNodeRef}
-        className={`flex-1 space-y-2 rounded-xl min-h-24 p-2 transition-colors ${
+        className={`flex-1 space-y-2 rounded-xl min-h-24 p-2 transition-colors overflow-hidden ${
           isOver
             ? 'bg-gray-200/60 dark:bg-gray-800/60'
             : 'bg-gray-100/30 dark:bg-gray-900/20'
@@ -189,6 +189,7 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
   async function handleSaveTask(data: {
     title: string
     description: string | null
+    url: string | null
     color: string
     collaborator_ids: string[]
   }) {
@@ -197,6 +198,7 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
         assignee_id: createForMember,
         title: data.title,
         description: data.description ?? undefined,
+        url: data.url,
         color: data.color,
         collaborator_ids: data.collaborator_ids,
       })
@@ -205,6 +207,7 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
         taskId: editingTask.id,
         title: data.title,
         description: data.description,
+        url: data.url,
         color: data.color,
         collaborator_ids: data.collaborator_ids,
       })
@@ -274,6 +277,8 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
         <TaskDetailModal
           task={viewingTask}
           assigneeName={memberNames[viewingTask.assignee_id]}
+          orgId={orgId}
+          currentUserId={currentUserId}
           onClose={() => setViewingTask(null)}
           onEdit={(task) => {
             setViewingTask(null)

@@ -1,11 +1,26 @@
 # Roadmap
 
-- [ ] github issues and pull requests integration
-  - feat: allow linking github issues and pull requests in tasks
-  - link 1+ issues and 1+ pull requests to a task
-  - only from repositories linked to org board
-- [ ] link repositories to organisation board
-  - feat: allow connecting repositories to organisation
-  - in organisation settings page, allow linking repos
-  - use github app for permissions and linking
-- [ ]
+- [ ] task url
+  - feat: add optional url input for each task
+  - a place to put a link to the finished task (e.g. deployed app)
+  - if the url input is non-empty, replace task preview description with clickable url
+- [ ] task suggestions
+  - feat: add collapsible list of inputs to task
+  - a place for org members to make suggestions to other tasks
+  - the task owner should be able to dismiss suggestions
+  - dismissed suggestions should be visible, but greyed-out with a strike through them
+  - whoever makes a suggestion should be able to remove their suggestion completely
+  - the task owner should be able to remove suggestions completely
+  - it should be visible who made the suggestion
+  - suggestions should be votable (+1 only, not downvotable)
+  - the task owner should be able to order the suggestions (drag and drop)
+  - suggestions should be limited to 50 characters
+  - inline markdown should be supported
+- [ ] icons to save space
+  - feat: change the task words to icons
+  - change "Del" to the trash icon
+  - change "Edit" to a pencil
+  - add animations on hover to icons
+  - add tooltips to icons
+- [ ] task overflow
+  - fix: adjust task min-width to prevent items overflowing

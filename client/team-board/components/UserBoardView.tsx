@@ -138,6 +138,7 @@ export function UserBoardView({
   async function handleSaveTask(data: {
     title: string
     description: string | null
+    url: string | null
     color: string
     collaborator_ids: string[]
   }) {
@@ -146,6 +147,7 @@ export function UserBoardView({
         assignee_id: userId,
         title: data.title,
         description: data.description ?? undefined,
+        url: data.url,
         color: data.color,
         collaborator_ids: data.collaborator_ids,
       })
@@ -154,6 +156,7 @@ export function UserBoardView({
         taskId: editingTask.id,
         title: data.title,
         description: data.description,
+        url: data.url,
         color: data.color,
         collaborator_ids: data.collaborator_ids,
       })
@@ -228,6 +231,8 @@ export function UserBoardView({
         <TaskDetailModal
           task={viewingTask}
           assigneeName={userName}
+          orgId={orgId}
+          currentUserId={currentUserId}
           onClose={() => setViewingTask(null)}
           onEdit={(task) => {
             setViewingTask(null)

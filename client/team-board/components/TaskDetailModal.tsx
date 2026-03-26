@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Task } from '../hooks/useTasks'
+import { TaskSuggestions } from './TaskSuggestions'
 
 const STATUS_LABELS: Record<Task['status'], string> = {
   idea: 'Idea',
@@ -20,11 +21,13 @@ const STATUS_COLORS: Record<Task['status'], string> = {
 interface Props {
   task: Task
   assigneeName?: string
+  orgId: string
+  currentUserId: string
   onClose: () => void
   onEdit: (task: Task) => void
 }
 
-export function TaskDetailModal({ task, assigneeName, onClose, onEdit }: Props) {
+export function TaskDetailModal({ task, assigneeName, currentUserId, onClose, onEdit }: Props) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
@@ -111,6 +114,24 @@ export function TaskDetailModal({ task, assigneeName, onClose, onEdit }: Props) 
           ) : (
             <p className="text-sm text-gray-400 dark:text-gray-600 italic">No description</p>
           )}
+          {task.url && (
+            <div className="mt-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">URL</p>
+              <a
+                href={task.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-blue-500 dark:text-blue-400 underline break-all"
+              >
+                {task.url}
+              </a>
+            </div>
+          )}
+          <TaskSuggestions
+            taskId={task.id}
+            taskOwnerId={task.assignee_id}
+            currentUserId={currentUserId}
+          />
         </div>
 
         {/* Footer */}

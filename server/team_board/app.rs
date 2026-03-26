@@ -153,6 +153,35 @@ pub fn create_app(state: AppState) -> Router {
             "/tasks/{task_id}/upvote",
             delete(crate::team_board::routes::tasks::remove_upvote),
         )
+        // Suggestions
+        .route(
+            "/tasks/{task_id}/suggestions",
+            post(crate::team_board::routes::suggestions::create_suggestion),
+        )
+        .route(
+            "/tasks/{task_id}/suggestions",
+            get(crate::team_board::routes::suggestions::list_suggestions),
+        )
+        .route(
+            "/suggestions/{suggestion_id}",
+            delete(crate::team_board::routes::suggestions::delete_suggestion),
+        )
+        .route(
+            "/suggestions/{suggestion_id}/dismiss",
+            patch(crate::team_board::routes::suggestions::dismiss_suggestion),
+        )
+        .route(
+            "/suggestions/{suggestion_id}/vote",
+            post(crate::team_board::routes::suggestions::vote_suggestion),
+        )
+        .route(
+            "/suggestions/{suggestion_id}/vote",
+            delete(crate::team_board::routes::suggestions::remove_vote_suggestion),
+        )
+        .route(
+            "/suggestions/{suggestion_id}/reorder",
+            patch(crate::team_board::routes::suggestions::reorder_suggestion),
+        )
         .layer(middleware::from_fn_with_state(
             state.clone(),
             crate::team_board::middleware::auth::require_auth,

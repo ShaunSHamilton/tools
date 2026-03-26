@@ -81,6 +81,7 @@ pub struct Task {
     pub created_by: ObjectId,
     pub title: String,
     pub description: Option<String>,
+    pub url: Option<String>,
     pub status: TaskStatus,
     pub drop_reason: Option<String>,
     pub color: String,
@@ -105,6 +106,7 @@ impl Task {
         created_by: ObjectId,
         title: String,
         description: Option<String>,
+        url: Option<String>,
         color: String,
         collaborator_ids: Vec<ObjectId>,
     ) -> mongodb::error::Result<Task> {
@@ -127,6 +129,7 @@ impl Task {
             created_by,
             title,
             description,
+            url,
             status: TaskStatus::Idea,
             drop_reason: None,
             color,
@@ -174,6 +177,7 @@ impl Task {
         id: &ObjectId,
         title: Option<String>,
         description: Option<Option<String>>,
+        url: Option<Option<String>>,
         status: Option<TaskStatus>,
         drop_reason: Option<Option<String>>,
         color: Option<String>,
@@ -195,6 +199,12 @@ impl Task {
             match d {
                 Some(text) => set_doc.insert("description", text),
                 None => set_doc.insert("description", mongodb::bson::Bson::Null),
+            };
+        }
+        if let Some(u) = url {
+            match u {
+                Some(text) => set_doc.insert("url", text),
+                None => set_doc.insert("url", mongodb::bson::Bson::Null),
             };
         }
         if let Some(s) = status {

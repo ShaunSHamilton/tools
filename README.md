@@ -2,11 +2,11 @@
 
 Internal tooling for freeCodeCamp, served as a single container with three path-prefixed apps.
 
-| App | Path prefix | Description |
-|---|---|---|
+| App          | Path prefix     | Description                                |
+| ------------ | --------------- | ------------------------------------------ |
 | exam-creator | `/exam-creator` | Authoring and managing certification exams |
-| task-tracker | `/task-tracker` | Team task management |
-| team-board | `/team-board` | Team kanban board |
+| task-tracker | `/task-tracker` | Team task management                       |
+| team-board   | `/team-board`   | Team kanban board                          |
 
 ## Stack
 
