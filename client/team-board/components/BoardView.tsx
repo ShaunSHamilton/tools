@@ -114,6 +114,12 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
   const sendWs = useWebSocket(orgId)
   const boardRef = useRef<HTMLDivElement>(null)
 
+  const sortedMembers = [...members].sort((a, b) => {
+    const nameA = (a.user.display_name?.trim() || a.user.name).toLowerCase()
+    const nameB = (b.user.display_name?.trim() || b.user.name).toLowerCase()
+    return nameA.localeCompare(nameB)
+  })
+
   const memberNames: Record<string, string> = Object.fromEntries(
     members.map((m) => [m.user.id, m.user.display_name?.trim() || m.user.name]),
   )
@@ -240,7 +246,7 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
           className="relative flex gap-4 overflow-x-auto pb-4 flex-1"
           onMouseMove={handleMouseMove}
         >
-          {members.map((member) => (
+          {sortedMembers.map((member) => (
             <MemberColumn
               key={member.user.id}
               member={member}
