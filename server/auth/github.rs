@@ -23,10 +23,13 @@ const GITHUB_API_VERSION: &str = "2026-03-10";
 
 // ── Login (redirect to GitHub) ────────────────────────────────────────────────
 
-pub async fn github_login(State(state): State<AppState>) -> impl IntoResponse {
+pub async fn github_login(
+    State(state): State<AppState>,
+    jar: PrivateCookieJar,
+) -> impl IntoResponse {
     if state.config.mock_auth {
         let url = format!("{}?code=mock&state=mock", state.config.github_redirect_url);
-        return Redirect::to(&url);
+        return (jar, Redirect::to(&url));
     }
 
     let csrf_state = Uuid::new_v4().to_string();
@@ -35,7 +38,12 @@ pub async fn github_login(State(state): State<AppState>) -> impl IntoResponse {
         state.config.github_client_id, csrf_state
     );
 
-    Redirect::to(&url)
+    let cookie = Cookie::build(("oauth_state", csrf_state))
+        .path("/")
+        .http_only(true)
+        .max_age(Duration::minutes(10));
+
+    (jar.add(cookie), Redirect::to(&url))
 }
 
 // ── Callback ──────────────────────────────────────────────────────────────────
@@ -43,7 +51,6 @@ pub async fn github_login(State(state): State<AppState>) -> impl IntoResponse {
 #[derive(Deserialize)]
 pub struct CallbackParams {
     code: String,
-    #[allow(dead_code)]
     state: String,
 }
 
@@ -52,6 +59,19 @@ pub async fn github_callback(
     jar: PrivateCookieJar,
     Query(params): Query<CallbackParams>,
 ) -> Result<impl IntoResponse, ApiError> {
+    // 0. Validate CSRF state.
+    if !state.config.mock_auth {
+        let stored = jar
+            .get("oauth_state")
+            .map(|c| c.value().to_string())
+            .ok_or(ApiError::Unauthorized("missing OAuth state cookie"))?;
+
+        if stored != params.state {
+            return Err(ApiError::Unauthorized("OAuth state mismatch"));
+        }
+    }
+    let jar = jar.remove("oauth_state");
+
     // 1. Exchange code for a user access token.
     let user_token = exchange_code(
         &params.code,
@@ -145,8 +165,10 @@ async fn exchange_code(
     }
 
     #[derive(Deserialize)]
-    struct TokenResponse {
-        access_token: String,
+    #[serde(untagged)]
+    enum TokenResponse {
+        Ok { access_token: String },
+        Err { error: String, error_description: String },
     }
 
     let text = http_client
@@ -162,12 +184,12 @@ async fn exchange_code(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "github token exchange request failed");
-            ApiError::Unauthorized("GitHub token exchange failed")
+            ApiError::Internal
         })?
         .error_for_status()
         .map_err(|e| {
             tracing::error!(error = %e, "github token exchange returned error status");
-            ApiError::Unauthorized("GitHub token exchange failed")
+            ApiError::Internal
         })?
         .text()
         .await
@@ -178,12 +200,17 @@ async fn exchange_code(
 
     tracing::debug!(token_exchange_response = text);
 
-    serde_json::from_str::<TokenResponse>(&text)
-        .map_err(|e| {
+    match serde_json::from_str::<TokenResponse>(&text) {
+        Ok(TokenResponse::Ok { access_token }) => Ok(access_token),
+        Ok(TokenResponse::Err { error, error_description }) => {
+            tracing::warn!(error, error_description, "github token exchange error");
+            Err(ApiError::Unauthorized("GitHub login link has expired, please try again"))
+        }
+        Err(e) => {
             tracing::error!(error = %e, "failed to deserialize token exchange response");
-            ApiError::Internal
-        })
-        .map(|r| r.access_token)
+            Err(ApiError::Internal)
+        }
+    }
 }
 
 // ── GitHub App JWT ─────────────────────────────────────────────────────────────
