@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-26
+
+### Added
+
+- feat: task url,suggestions,icons,overflow
+
+### Fixed
+
+- fix(client): sort board columns alphabetically by member name
+
+### Changed
+
+- chore: roadmap
+- chore: fix docker build
+
 ## [0.6.0] - 2026-03-26
 
 ### Added
