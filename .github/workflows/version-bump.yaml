@@ -21,13 +21,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: get current version and calculate new version
         id: version
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           RELEASE_TYPE: ${{ inputs.release_type }}
         with:
@@ -54,6 +54,54 @@ jobs:
             core.setOutput('new_version', newVersion)
             console.log(`Bumping version from ${version} to ${newVersion}`)
 
+      - name: generate changelog
+        id: changelog
+        env:
+          CURRENT_VERSION: ${{ steps.version.outputs.current_version }}
+          NEW_VERSION: ${{ steps.version.outputs.new_version }}
+        run: |
+          set -euo pipefail
+
+          TODAY=$(date +%Y-%m-%d)
+
+          # Find the commit hash of the previous release commit
+          PREV_RELEASE_COMMIT=$(git log --oneline --all | grep -m1 "release(.*): ${CURRENT_VERSION}" | awk '{print $1}' || true)
+
+          if [ -n "$PREV_RELEASE_COMMIT" ]; then
+            RAW_COMMITS=$(git log "${PREV_RELEASE_COMMIT}..HEAD" --pretty=format:"%s" --no-merges)
+          else
+            RAW_COMMITS=$(git log --pretty=format:"%s" --no-merges)
+          fi
+
+          FEATS="" FIXES="" CHORES="" OTHERS=""
+
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            echo "$line" | grep -qE "^release\(" && continue
+            if echo "$line" | grep -qE "^feat(\([^)]+\))?:"; then
+              FEATS="${FEATS}- ${line}"$'\n'
+            elif echo "$line" | grep -qE "^fix(\([^)]+\))?:"; then
+              FIXES="${FIXES}- ${line}"$'\n'
+            elif echo "$line" | grep -qE "^chore(\([^)]+\))?:"; then
+              CHORES="${CHORES}- ${line}"$'\n'
+            else
+              OTHERS="${OTHERS}- ${line}"$'\n'
+            fi
+          done <<< "$RAW_COMMITS"
+
+          NEW_SECTION="## [${NEW_VERSION}] - ${TODAY}"$'\n'
+          [ -n "$FEATS" ]  && NEW_SECTION="${NEW_SECTION}"$'\n'"### Added"$'\n'$'\n'"${FEATS}"
+          [ -n "$FIXES" ]  && NEW_SECTION="${NEW_SECTION}"$'\n'"### Fixed"$'\n'$'\n'"${FIXES}"
+          [ -n "$CHORES" ] && NEW_SECTION="${NEW_SECTION}"$'\n'"### Changed"$'\n'$'\n'"${CHORES}"
+          [ -n "$OTHERS" ] && NEW_SECTION="${NEW_SECTION}"$'\n'"### Other"$'\n'$'\n'"${OTHERS}"
+          [ -z "$FEATS$FIXES$CHORES$OTHERS" ] && NEW_SECTION="${NEW_SECTION}"$'\n'"_(no notable changes)_"$'\n'
+
+          TEMP=$(mktemp)
+          awk -v s="$NEW_SECTION" '/^## \[Unreleased\]/ { print; print ""; printf "%s", s; next } { print }' CHANGELOG.md > "$TEMP"
+          mv "$TEMP" CHANGELOG.md
+
+          { echo "section<<CHANGELOG_EOF"; echo "$NEW_SECTION"; echo "CHANGELOG_EOF"; } >> "$GITHUB_OUTPUT"
+
       - name: update Cargo.toml and Cargo.lock
         run: |
           sed -i 's/^version = ".*"/version = "${{ steps.version.outputs.new_version }}"/' Cargo.toml
@@ -64,7 +112,7 @@ jobs:
           npm version ${{ inputs.release_type }} --no-git-tag-version
 
       - name: create pull request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "release(${{ inputs.release_type }}): ${{ steps.version.outputs.new_version }}"
@@ -75,6 +123,10 @@ jobs:
             ## Version Bump: ${{ inputs.release_type }}
 
             This PR bumps the version from `${{ steps.version.outputs.current_version }}` to `${{ steps.version.outputs.new_version }}`.
+
+            ## Changelog
+
+            ${{ steps.changelog.outputs.section }}
 
             ### Next Steps
 

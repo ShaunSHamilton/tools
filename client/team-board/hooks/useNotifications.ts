@@ -10,11 +10,19 @@ export interface OrgInvitePayload {
   invited_by: string
 }
 
+export interface AppReleasePayload {
+  type: 'app_release'
+  version: string
+  notes: string
+}
+
+export type NotificationPayload = OrgInvitePayload | AppReleasePayload
+
 export interface AppNotification {
   id: string
   read: boolean
   created_at: string
-  payload: OrgInvitePayload // extend union as new types are added
+  payload: NotificationPayload
 }
 
 export function useNotifications() {

@@ -130,4 +130,7 @@
   html {
     @apply font-mono;
   }
+  button:not(:disabled) {
+    cursor: pointer;
+  }
 }

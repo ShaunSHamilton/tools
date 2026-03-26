@@ -51,25 +51,26 @@ export function NotificationBell() {
               </div>
             ) : (
               <ul className="divide-y divide-gray-100 dark:divide-gray-800 max-h-96 overflow-y-auto">
-                {notifications.map((n) => (
-                  <li
+                {notifications.map((n) => {
+                  const payload = n.payload
+                  return <li
                     key={n.id}
                     className={`px-4 py-3 transition-colors ${
                       n.read ? 'opacity-50' : 'bg-blue-50/50 dark:bg-blue-950/20'
                     }`}
                   >
-                    {n.payload.type === 'org_invite' && (
+                    {payload.type === 'org_invite' && (
                       <div className="space-y-2">
                         <p className="text-sm text-gray-800 dark:text-gray-200">
-                          <span className="font-medium">{n.payload.invited_by}</span>
+                          <span className="font-medium">{payload.invited_by}</span>
                           {' invited you to '}
-                          <span className="font-medium">{n.payload.org_name}</span>
+                          <span className="font-medium">{payload.org_name}</span>
                         </p>
                         {!n.read && (
                           <div className="flex gap-2">
                             <button
                               onClick={() =>
-                                handleRespond(n.payload.invitation_id, n.id, 'accept')
+                                handleRespond(payload.invitation_id, n.id, 'accept')
                               }
                               className="text-xs px-3 py-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-100"
                             >
@@ -77,7 +78,7 @@ export function NotificationBell() {
                             </button>
                             <button
                               onClick={() =>
-                                handleRespond(n.payload.invitation_id, n.id, 'decline')
+                                handleRespond(payload.invitation_id, n.id, 'decline')
                               }
                               className="text-xs px-3 py-1 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500"
                             >
@@ -87,8 +88,32 @@ export function NotificationBell() {
                         )}
                       </div>
                     )}
+
+                    {payload.type === 'app_release' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                            v{payload.version}
+                          </span>
+                          <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            New release
+                          </p>
+                        </div>
+                        <pre className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap font-sans leading-relaxed max-h-40 overflow-y-auto">
+                          {payload.notes}
+                        </pre>
+                        {!n.read && (
+                          <button
+                            onClick={() => markRead.mutate(n.id)}
+                            className="text-xs px-3 py-1 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500"
+                          >
+                            Dismiss
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </li>
-                ))}
+                })}
               </ul>
             )}
           </div>

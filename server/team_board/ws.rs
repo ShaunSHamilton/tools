@@ -11,12 +11,39 @@ use axum::{
 use axum_extra::extract::PrivateCookieJar;
 use dashmap::DashMap;
 use futures::{SinkExt, StreamExt};
-use mongodb::bson::oid::ObjectId;
+use mongodb::bson::{doc, oid::ObjectId};
 use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
-use crate::team_board::{app::AppState, models::{org::OrgMember, session::Session, user::User}};
+use crate::team_board::{app::AppState, models::{notification::{Notification, NotificationPayload}, org::OrgMember, session::Session, user::User}};
+
+// ── Changelog ─────────────────────────────────────────────────────────────────
+
+const CHANGELOG: &str = include_str!("../../CHANGELOG.md");
+
+/// Extracts the release notes for `version` from a Keep-a-Changelog document.
+/// Returns the text between the matching version header and the next version
+/// header (or end of file), trimmed.
+fn extract_version_notes(changelog: &str, version: &str) -> String {
+    let header = format!("## [{version}]");
+    let mut in_section = false;
+    let mut lines: Vec<&str> = Vec::new();
+
+    for line in changelog.lines() {
+        if in_section {
+            // Stop at the next `## [` section header
+            if line.starts_with("## [") {
+                break;
+            }
+            lines.push(line);
+        } else if line.starts_with(&header) {
+            in_section = true;
+        }
+    }
+
+    lines.join("\n").trim().to_string()
+}
 
 // ── Presence state ────────────────────────────────────────────────────────────
 
@@ -179,6 +206,9 @@ async fn handle_socket(socket: WebSocket, state: AppState, user_id: ObjectId) {
     // ── 3. Register connection ────────────────────────────────────────────────
     let conn_id = state.presence.alloc_id();
     let (tx, mut rx) = unbounded_channel::<Message>();
+    // Keep a clone of the sender before moving tx into the presence map,
+    // so we can target this specific connection for the release notification.
+    let tx_for_notif = tx.clone();
     state.presence.register(&org_id, conn_id, user_id, tx);
 
     tracing::debug!(
@@ -187,6 +217,56 @@ async fn handle_socket(socket: WebSocket, state: AppState, user_id: ObjectId) {
         user_id = %user_id,
         "ws connected"
     );
+
+    // ── 3b. Send AppRelease notification if not already sent for this version ─
+    {
+        let current_version = env!("CARGO_PKG_VERSION");
+        let db = state.db.clone();
+        let notes = extract_version_notes(CHANGELOG, current_version);
+        let version_str = current_version.to_string();
+
+        tokio::spawn(async move {
+            // Check if we already have an AppRelease notification for this version
+            let collection = db.collection::<mongodb::bson::Document>("Notification");
+            let exists = collection
+                .count_documents(doc! {
+                    "user_id": &user_id,
+                    "payload.type": "app_release",
+                    "payload.version": &version_str,
+                })
+                .await;
+
+            match exists {
+                Ok(0) => {
+                    // Create the notification
+                    match Notification::create(
+                        &db,
+                        user_id,
+                        NotificationPayload::AppRelease {
+                            version: version_str,
+                            notes,
+                        },
+                    )
+                    .await
+                    {
+                        Ok(_) => {
+                            let msg = serde_json::json!({ "type": "notification" }).to_string();
+                            let _ = tx_for_notif.send(Message::Text(msg.into()));
+                        }
+                        Err(e) => {
+                            tracing::error!(error = %e, "failed to create AppRelease notification");
+                        }
+                    }
+                }
+                Ok(_) => {
+                    // Already notified for this version — nothing to do
+                }
+                Err(e) => {
+                    tracing::error!(error = %e, "failed to query AppRelease notifications");
+                }
+            }
+        });
+    }
 
     // Spawn a task to forward outbound messages from the channel to the WS sink
     let mut send_task = tokio::spawn(async move {

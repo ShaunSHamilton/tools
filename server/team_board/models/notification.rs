@@ -15,6 +15,10 @@ pub enum NotificationPayload {
         org_name: String,
         invited_by: String,
     },
+    AppRelease {
+        version: String,
+        notes: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +79,11 @@ impl Notification {
                         "org_id": org_id.to_hex(),
                         "org_name": org_name,
                         "invited_by": invited_by,
+                    }),
+                    NotificationPayload::AppRelease { version, notes } => json!({
+                        "type": "app_release",
+                        "version": version,
+                        "notes": notes,
                     }),
                 };
                 json!({

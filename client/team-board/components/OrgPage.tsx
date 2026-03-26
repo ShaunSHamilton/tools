@@ -50,6 +50,11 @@ export function OrgPage({ orgId, currentUser }: Props) {
   }
 
   const { org, members } = data
+  const sortedMembers = [...members].sort((a, b) => {
+    const nameA = (a.user.display_name || a.user.name).toLowerCase()
+    const nameB = (b.user.display_name || b.user.name).toLowerCase()
+    return nameA.localeCompare(nameB)
+  })
   const me = members.find((m) => m.user.id === currentUser.id)
   const isAdmin = me?.role === 'admin'
 
@@ -76,7 +81,7 @@ export function OrgPage({ orgId, currentUser }: Props) {
           Members · {members.length}
         </h3>
         <ul className="divide-y divide-gray-100 dark:divide-gray-800 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
-          {members.map((m) => {
+          {sortedMembers.map((m) => {
             const isMe = m.user.id === currentUser.id
             return (
               <li
