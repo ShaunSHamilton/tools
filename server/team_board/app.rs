@@ -70,6 +70,7 @@ pub fn create_shared_api_router(state: AppState) -> Router {
 
     let protected_api = Router::new()
         .route("/auth/me", get(crate::auth::me))
+        .route("/auth/me", patch(crate::auth::update_me))
         .route("/auth/logout", post(crate::auth::logout))
         .layer(middleware::from_fn_with_state(
             state.clone(),
@@ -143,6 +144,14 @@ pub fn create_app(state: AppState) -> Router {
         .route(
             "/tasks/{task_id}",
             delete(crate::team_board::routes::tasks::delete_task),
+        )
+        .route(
+            "/tasks/{task_id}/upvote",
+            post(crate::team_board::routes::tasks::upvote_task),
+        )
+        .route(
+            "/tasks/{task_id}/upvote",
+            delete(crate::team_board::routes::tasks::remove_upvote),
         )
         .layer(middleware::from_fn_with_state(
             state.clone(),

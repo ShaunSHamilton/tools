@@ -5,6 +5,8 @@ export interface CurrentUser {
   name: string
   email: string
   picture?: string | null
+  display_name?: string | null
+  show_live_cursors: boolean
 }
 
 export function useCurrentUser() {
@@ -17,4 +19,9 @@ export function useCurrentUser() {
     retry: false,
     staleTime: Infinity, // identity doesn't change mid-session
   })
+}
+
+/** Returns the user's effective display name: display_name if set, else name. */
+export function effectiveName(user: Pick<CurrentUser, 'name' | 'display_name'>): string {
+  return user.display_name?.trim() || user.name
 }

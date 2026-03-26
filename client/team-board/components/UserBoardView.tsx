@@ -13,7 +13,8 @@ import { useDroppable } from '@dnd-kit/core'
 import type { Task } from '../hooks/useTasks'
 import { useUpdateTask, useDeleteTask, useCreateTask } from '../hooks/useTasks'
 import { TaskCard, TaskCardOverlay } from './TaskCard'
-import { TaskFormModal } from './TaskFormModal'
+import { TaskFormModal, type ModalMember } from './TaskFormModal'
+import { TaskDetailModal } from './TaskDetailModal'
 import { DropReasonModal } from './DropReasonModal'
 import { Skeleton } from './Skeleton'
 
@@ -31,6 +32,7 @@ interface Props {
   userId: string
   userName: string
   tasks: Task[]
+  members?: ModalMember[]
   currentUserId: string
   onBack: () => void
 }
@@ -39,14 +41,18 @@ function DroppableColumn({
   status,
   label,
   tasks,
+  orgId,
   onEdit,
   onDelete,
+  onOpen,
 }: {
   status: Status
   label: string
   tasks: Task[]
+  orgId: string
   onEdit: (t: Task) => void
   onDelete: (id: string) => void
+  onOpen: (t: Task) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
 
@@ -68,7 +74,7 @@ function DroppableColumn({
       >
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((t) => (
-            <TaskCard key={t.id} task={t} onEdit={onEdit} onDelete={onDelete} />
+            <TaskCard key={t.id} task={t} orgId={orgId} onEdit={onEdit} onDelete={onDelete} onOpen={onOpen} />
           ))}
         </SortableContext>
         {tasks.length === 0 && (
@@ -86,11 +92,13 @@ export function UserBoardView({
   userId,
   userName,
   tasks,
+  members = [],
   currentUserId,
   onBack,
 }: Props) {
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null | undefined>(undefined)
+  const [viewingTask, setViewingTask] = useState<Task | null>(null)
   const [pendingDrop, setPendingDrop] = useState<{ taskId: string; status: Status } | null>(null)
   const [isLoading] = useState(false)
 
@@ -127,13 +135,19 @@ export function UserBoardView({
     }
   }
 
-  async function handleSaveTask(data: { title: string; description: string | null; color: string }) {
+  async function handleSaveTask(data: {
+    title: string
+    description: string | null
+    color: string
+    collaborator_ids: string[]
+  }) {
     if (editingTask === null) {
       await createTask.mutateAsync({
         assignee_id: userId,
         title: data.title,
         description: data.description ?? undefined,
         color: data.color,
+        collaborator_ids: data.collaborator_ids,
       })
     } else if (editingTask) {
       await updateTask.mutateAsync({
@@ -141,6 +155,7 @@ export function UserBoardView({
         title: data.title,
         description: data.description,
         color: data.color,
+        collaborator_ids: data.collaborator_ids,
       })
     }
     setEditingTask(undefined)
@@ -196,8 +211,10 @@ export function UserBoardView({
                 status={col.id}
                 label={col.label}
                 tasks={byStatus(col.id)}
+                orgId={orgId}
                 onEdit={setEditingTask}
                 onDelete={handleDelete}
+                onOpen={setViewingTask}
               />
             ))}
           </div>
@@ -207,10 +224,23 @@ export function UserBoardView({
         </DndContext>
       )}
 
+      {viewingTask && (
+        <TaskDetailModal
+          task={viewingTask}
+          assigneeName={userName}
+          onClose={() => setViewingTask(null)}
+          onEdit={(task) => {
+            setViewingTask(null)
+            setEditingTask(task)
+          }}
+        />
+      )}
+
       {editingTask !== undefined && (
         <TaskFormModal
           task={editingTask}
           orgId={orgId}
+          members={members}
           onSave={handleSaveTask}
           onClose={() => setEditingTask(undefined)}
           isSaving={createTask.isPending || updateTask.isPending}

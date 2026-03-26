@@ -23,6 +23,7 @@ import { ecViewMetricsRoute } from "./routes/exam-creator/metrics_.exams.$id";
 // Team Board
 import { tbLayoutRoute } from "./routes/team-board/route";
 import { tbIndexRoute } from "./routes/team-board/index";
+import { tbSettingsRoute } from "./routes/team-board/settings";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -48,6 +49,7 @@ const routeTree = rootRoute.addChildren([
   // Team Board
   tbLayoutRoute.addChildren([
     tbIndexRoute,
+    tbSettingsRoute,
   ]),
 ]);
 

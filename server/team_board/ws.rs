@@ -16,13 +16,19 @@ use serde::Deserialize;
 use serde_json::json;
 use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
-use crate::team_board::{app::AppState, models::{org::OrgMember, session::Session}};
+use crate::team_board::{app::AppState, models::{org::OrgMember, session::Session, user::User}};
 
 // ── Presence state ────────────────────────────────────────────────────────────
 
-/// Manages active WebSocket connections, keyed by org_id → conn_id → sender.
+/// Per-connection entry: the owning user's id + the outbound sender.
+struct ConnEntry {
+    user_id: ObjectId,
+    tx: UnboundedSender<Message>,
+}
+
+/// Manages active WebSocket connections, keyed by org_id → conn_id → entry.
 pub struct OrgPresence {
-    connections: DashMap<String, DashMap<u64, UnboundedSender<Message>>>,
+    connections: DashMap<String, DashMap<u64, ConnEntry>>,
     next_id: AtomicU64,
 }
 
@@ -38,11 +44,11 @@ impl OrgPresence {
         self.next_id.fetch_add(1, Ordering::Relaxed)
     }
 
-    fn register(&self, org_id: &str, conn_id: u64, tx: UnboundedSender<Message>) {
+    fn register(&self, org_id: &str, conn_id: u64, user_id: ObjectId, tx: UnboundedSender<Message>) {
         self.connections
             .entry(org_id.to_string())
             .or_default()
-            .insert(conn_id, tx);
+            .insert(conn_id, ConnEntry { user_id, tx });
     }
 
     fn remove_conn(&self, org_id: &str, conn_id: u64) {
@@ -61,6 +67,7 @@ impl OrgPresence {
             .filter(|e| skip.is_none_or(|s| *e.key() != s))
             .filter_map(|e| {
                 e.value()
+                    .tx
                     .send(Message::Text(msg.to_owned().into()))
                     .err()
                     .map(|_| *e.key())
@@ -73,6 +80,34 @@ impl OrgPresence {
 
     pub fn broadcast(&self, org_id: &str, msg: &str) {
         self.broadcast_except(org_id, msg, None);
+    }
+
+    /// Collect all (conn_id, user_id) pairs in an org except the given conn_id.
+    fn recipients_except(&self, org_id: &str, skip: u64) -> Vec<(u64, ObjectId)> {
+        let Some(org_conns) = self.connections.get(org_id) else {
+            return vec![];
+        };
+        org_conns
+            .iter()
+            .filter(|e| *e.key() != skip)
+            .map(|e| (*e.key(), e.value().user_id))
+            .collect()
+    }
+
+    /// Send `msg` to a specific connection by conn_id. Returns true if sent, false if dead.
+    fn send_to(&self, org_id: &str, conn_id: u64, msg: &str) -> bool {
+        let Some(org_conns) = self.connections.get(org_id) else {
+            return false;
+        };
+        let Some(entry) = org_conns.get(&conn_id) else {
+            return false;
+        };
+        if entry.tx.send(Message::Text(msg.to_owned().into())).is_err() {
+            drop(entry);
+            org_conns.remove(&conn_id);
+            return false;
+        }
+        true
     }
 }
 
@@ -144,7 +179,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, user_id: ObjectId) {
     // ── 3. Register connection ────────────────────────────────────────────────
     let conn_id = state.presence.alloc_id();
     let (tx, mut rx) = unbounded_channel::<Message>();
-    state.presence.register(&org_id, conn_id, tx);
+    state.presence.register(&org_id, conn_id, user_id, tx);
 
     tracing::debug!(
         conn_id,
@@ -177,6 +212,16 @@ async fn handle_socket(socket: WebSocket, state: AppState, user_id: ObjectId) {
                         if let Ok(ClientMsg::CursorMove { x, y, board_id }) =
                             serde_json::from_str::<ClientMsg>(&text)
                         {
+                            // Check if the sender has opted out of sharing their cursor
+                            let sender_shows = match User::find_by_id(&state.db, &user_id).await {
+                                Ok(Some(u)) => u.show_live_cursors.unwrap_or(true),
+                                _ => true,
+                            };
+                            if !sender_shows {
+                                // Sender opted out — don't broadcast their cursor at all
+                                continue;
+                            }
+
                             let evt = json!({
                                 "type": "cursor_moved",
                                 "payload": {
@@ -187,7 +232,18 @@ async fn handle_socket(socket: WebSocket, state: AppState, user_id: ObjectId) {
                                 }
                             })
                             .to_string();
-                            state.presence.broadcast_except(&org_id, &evt, Some(conn_id));
+
+                            // Broadcast only to recipients who have live cursors enabled
+                            let recipients = state.presence.recipients_except(&org_id, conn_id);
+                            for (rcpt_conn_id, rcpt_user_id) in recipients {
+                                let rcpt_shows = match User::find_by_id(&state.db, &rcpt_user_id).await {
+                                    Ok(Some(u)) => u.show_live_cursors.unwrap_or(true),
+                                    _ => true,
+                                };
+                                if rcpt_shows {
+                                    state.presence.send_to(&org_id, rcpt_conn_id, &evt);
+                                }
+                            }
                         }
                     }
                     Some(Ok(Message::Ping(bytes))) => {

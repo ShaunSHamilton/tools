@@ -19,7 +19,8 @@ import {
 } from '../hooks/useTasks'
 import type { Task } from '../hooks/useTasks'
 import { TaskCard, TaskCardOverlay } from './TaskCard'
-import { TaskFormModal } from './TaskFormModal'
+import { TaskFormModal, type ModalMember } from './TaskFormModal'
+import { TaskDetailModal } from './TaskDetailModal'
 import { DropReasonModal } from './DropReasonModal'
 import { UserBoardView } from './UserBoardView'
 import { CursorOverlay } from './CursorOverlay'
@@ -37,16 +38,20 @@ interface Props {
 function MemberColumn({
   member,
   tasks,
+  orgId,
   onEdit,
   onDelete,
+  onOpen,
   onAddTask,
   onClickHeader,
   isCurrentUser,
 }: {
   member: OrgMember
   tasks: Task[]
+  orgId: string
   onEdit: (t: Task) => void
   onDelete: (id: string) => void
+  onOpen: (t: Task) => void
   onAddTask: () => void
   onClickHeader: () => void
   isCurrentUser: boolean
@@ -60,7 +65,7 @@ function MemberColumn({
           onClick={onClickHeader}
           className="text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-colors text-left truncate"
         >
-          {member.user.name}
+          {member.user.display_name?.trim() || member.user.name}
           {isCurrentUser && (
             <span className="ml-1 text-xs text-gray-400 dark:text-gray-600">(you)</span>
           )}
@@ -86,7 +91,7 @@ function MemberColumn({
       >
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((t) => (
-            <TaskCard key={t.id} task={t} onEdit={onEdit} onDelete={onDelete} />
+            <TaskCard key={t.id} task={t} orgId={orgId} onEdit={onEdit} onDelete={onDelete} onOpen={onOpen} />
           ))}
         </SortableContext>
         {tasks.length === 0 && (
@@ -110,7 +115,7 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
   const boardRef = useRef<HTMLDivElement>(null)
 
   const memberNames: Record<string, string> = Object.fromEntries(
-    members.map((m) => [m.user.id, m.user.name]),
+    members.map((m) => [m.user.id, m.user.display_name?.trim() || m.user.name]),
   )
 
   const emitCursor = useThrottle((x: number, y: number) => {
@@ -128,6 +133,7 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
 
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null | undefined>(undefined)
+  const [viewingTask, setViewingTask] = useState<Task | null>(null)
   const [createForMember, setCreateForMember] = useState<string | null>(null)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [pendingDrop, setPendingDrop] = useState<{ taskId: string; newAssigneeId: string } | null>(
@@ -174,13 +180,19 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
     }
   }
 
-  async function handleSaveTask(data: { title: string; description: string | null; color: string }) {
+  async function handleSaveTask(data: {
+    title: string
+    description: string | null
+    color: string
+    collaborator_ids: string[]
+  }) {
     if (editingTask === null && createForMember) {
       await createTask.mutateAsync({
         assignee_id: createForMember,
         title: data.title,
         description: data.description ?? undefined,
         color: data.color,
+        collaborator_ids: data.collaborator_ids,
       })
     } else if (editingTask) {
       await updateTask.mutateAsync({
@@ -188,6 +200,7 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
         title: data.title,
         description: data.description,
         color: data.color,
+        collaborator_ids: data.collaborator_ids,
       })
     }
     setEditingTask(undefined)
@@ -207,6 +220,7 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
           userId={selectedUserId}
           userName={member.user.name}
           tasks={tasks}
+          members={members.map((m): ModalMember => ({ id: m.user.id, name: m.user.name }))}
           currentUserId={currentUserId}
           onBack={() => setSelectedUserId(null)}
         />
@@ -231,8 +245,10 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
               key={member.user.id}
               member={member}
               tasks={tasksForMember(member.user.id)}
+              orgId={orgId}
               onEdit={setEditingTask}
               onDelete={handleDelete}
+              onOpen={setViewingTask}
               isCurrentUser={member.user.id === currentUserId}
               onAddTask={() => {
                 setCreateForMember(member.user.id)
@@ -248,10 +264,23 @@ export function BoardView({ orgId, members, currentUserId }: Props) {
         </DragOverlay>
       </DndContext>
 
+      {viewingTask && (
+        <TaskDetailModal
+          task={viewingTask}
+          assigneeName={memberNames[viewingTask.assignee_id]}
+          onClose={() => setViewingTask(null)}
+          onEdit={(task) => {
+            setViewingTask(null)
+            setEditingTask(task)
+          }}
+        />
+      )}
+
       {editingTask !== undefined && (
         <TaskFormModal
           task={editingTask}
           orgId={orgId}
+          members={members.map((m): ModalMember => ({ id: m.user.id, name: m.user.name }))}
           onSave={handleSaveTask}
           onClose={() => { setEditingTask(undefined); setCreateForMember(null) }}
           isSaving={createTask.isPending || updateTask.isPending}

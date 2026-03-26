@@ -85,6 +85,10 @@ pub struct Task {
     pub drop_reason: Option<String>,
     pub color: String,
     pub position: String,
+    #[serde(default)]
+    pub upvotes: Vec<ObjectId>,
+    #[serde(default)]
+    pub collaborator_ids: Vec<ObjectId>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
 }
@@ -102,6 +106,7 @@ impl Task {
         title: String,
         description: Option<String>,
         color: String,
+        collaborator_ids: Vec<ObjectId>,
     ) -> mongodb::error::Result<Task> {
         // Find the last position for this assignee in this org
         let last = Self::collection(db)
@@ -126,6 +131,8 @@ impl Task {
             drop_reason: None,
             color,
             position,
+            upvotes: Vec::new(),
+            collaborator_ids,
             created_at: now,
             updated_at: now,
         };
@@ -171,6 +178,7 @@ impl Task {
         drop_reason: Option<Option<String>>,
         color: Option<String>,
         assignee_id: Option<ObjectId>,
+        collaborator_ids: Option<Vec<ObjectId>>,
     ) -> mongodb::error::Result<Option<Task>> {
         // Fetch current state to validate invariants
         let current = match Self::find_by_id(db, id).await? {
@@ -227,6 +235,12 @@ impl Task {
             set_doc.insert("position", new_position);
         }
 
+        if let Some(cids) = collaborator_ids {
+            let bson_ids: Vec<mongodb::bson::Bson> =
+                cids.into_iter().map(mongodb::bson::Bson::ObjectId).collect();
+            set_doc.insert("collaborator_ids", mongodb::bson::Bson::Array(bson_ids));
+        }
+
         Self::collection(db)
             .update_one(doc! { "_id": id }, doc! { "$set": set_doc })
             .await?;
@@ -272,6 +286,42 @@ impl Task {
             .await?;
 
         Ok(Some(new_position))
+    }
+
+    /// Add a user's upvote (idempotent via $addToSet).
+    pub async fn add_upvote(
+        db: &Database,
+        id: &ObjectId,
+        user_id: &ObjectId,
+    ) -> mongodb::error::Result<Option<Task>> {
+        Self::collection(db)
+            .update_one(
+                doc! { "_id": id },
+                doc! {
+                    "$addToSet": { "upvotes": user_id },
+                    "$set": { "updated_at": DateTime::now() }
+                },
+            )
+            .await?;
+        Self::find_by_id(db, id).await
+    }
+
+    /// Remove a user's upvote.
+    pub async fn remove_upvote(
+        db: &Database,
+        id: &ObjectId,
+        user_id: &ObjectId,
+    ) -> mongodb::error::Result<Option<Task>> {
+        Self::collection(db)
+            .update_one(
+                doc! { "_id": id },
+                doc! {
+                    "$pull": { "upvotes": user_id },
+                    "$set": { "updated_at": DateTime::now() }
+                },
+            )
+            .await?;
+        Self::find_by_id(db, id).await
     }
 
     pub async fn delete(

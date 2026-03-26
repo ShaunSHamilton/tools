@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Navigate, useNavigate } from '@tanstack/react-router'
-import { useCurrentUser } from './hooks/useCurrentUser'
+import { Link, Navigate, useNavigate } from '@tanstack/react-router'
+import { useCurrentUser, effectiveName } from './hooks/useCurrentUser'
 import { useTheme } from './hooks/useTheme'
 import { NotificationBell } from './components/NotificationBell'
 import { OrgSwitcher } from './components/OrgSwitcher'
@@ -64,8 +64,14 @@ function App() {
           <NotificationBell />
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <span className="hidden sm:block text-sm text-gray-500 dark:text-gray-400">
-            {user.name}
+            {effectiveName(user)}
           </span>
+          <Link
+            to="/team-board/settings"
+            className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            Settings
+          </Link>
           <button
             onClick={handleLogout}
             className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"

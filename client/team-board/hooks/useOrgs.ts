@@ -10,7 +10,7 @@ export interface Org {
 }
 
 export interface OrgMember {
-  user: { id: string; name: string; email: string }
+  user: { id: string; name: string; email: string; display_name?: string | null }
   role: 'admin' | 'member'
   joined_at: string
 }

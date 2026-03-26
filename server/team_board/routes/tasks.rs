@@ -4,19 +4,24 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
+use futures::TryStreamExt;
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::team_board::{
-    app::AppState,
-    error::ApiError,
-    middleware::auth::UserId,
-    models::{
-        org::OrgMember,
-        task::{Task, TaskStatus},
+use crate::{
+    auth::ApiUser,
+    team_board::{
+        app::AppState,
+        error::ApiError,
+        middleware::auth::UserId,
+        models::{
+            org::OrgMember,
+            task::{Task, TaskStatus},
+            user::User,
+        },
+        routes::orgs::{parse_oid, require_org},
     },
-    routes::orgs::{parse_oid, require_org},
 };
 
 // ── Request / response types ──────────────────────────────────────────────────
@@ -27,6 +32,7 @@ pub struct CreateTaskRequest {
     pub title: String,
     pub description: Option<String>,
     pub color: Option<String>,
+    pub collaborator_ids: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -37,6 +43,7 @@ pub struct UpdateTaskRequest {
     pub drop_reason: Option<Option<String>>,
     pub color: Option<String>,
     pub assignee_id: Option<String>,
+    pub collaborator_ids: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -57,12 +64,22 @@ pub struct ApiTask {
     pub drop_reason: Option<String>,
     pub color: String,
     pub position: String,
+    pub upvote_count: i32,
+    pub user_has_upvoted: bool,
+    pub collaborators: Vec<ApiUser>,
     pub created_at: String,
     pub updated_at: String,
 }
 
-impl From<&Task> for ApiTask {
-    fn from(t: &Task) -> Self {
+pub struct ApiTaskContext<'a> {
+    pub task: &'a Task,
+    pub requesting_user_id: &'a mongodb::bson::oid::ObjectId,
+    pub collaborator_users: Vec<ApiUser>,
+}
+
+impl<'a> From<ApiTaskContext<'a>> for ApiTask {
+    fn from(ctx: ApiTaskContext<'a>) -> Self {
+        let t = ctx.task;
         ApiTask {
             id: t.id.to_hex(),
             org_id: t.org_id.to_hex(),
@@ -80,10 +97,55 @@ impl From<&Task> for ApiTask {
             drop_reason: t.drop_reason.clone(),
             color: t.color.clone(),
             position: t.position.clone(),
+            upvote_count: t.upvotes.len() as i32,
+            user_has_upvoted: t.upvotes.contains(ctx.requesting_user_id),
+            collaborators: ctx.collaborator_users,
             created_at: t.created_at.to_string(),
             updated_at: t.updated_at.to_string(),
         }
     }
+}
+
+/// Fetch collaborator User docs and convert to ApiUser (no email).
+async fn resolve_collaborators(
+    db: &mongodb::Database,
+    task: &Task,
+) -> Result<Vec<ApiUser>, ApiError> {
+    if task.collaborator_ids.is_empty() {
+        return Ok(vec![]);
+    }
+    let users: Vec<User> = db
+        .collection::<User>("users")
+        .find(mongodb::bson::doc! { "_id": { "$in": &task.collaborator_ids } })
+        .await?
+        .try_collect()
+        .await?;
+
+    // Preserve order of collaborator_ids
+    let result = task
+        .collaborator_ids
+        .iter()
+        .filter_map(|cid| {
+            users
+                .iter()
+                .find(|u| &u.id == cid)
+                .map(ApiUser::without_email)
+        })
+        .collect();
+    Ok(result)
+}
+
+async fn task_to_api(
+    db: &mongodb::Database,
+    task: &Task,
+    user_id: &mongodb::bson::oid::ObjectId,
+) -> Result<ApiTask, ApiError> {
+    let collaborator_users = resolve_collaborators(db, task).await?;
+    Ok(ApiTask::from(ApiTaskContext {
+        task,
+        requesting_user_id: user_id,
+        collaborator_users,
+    }))
 }
 
 const DEFAULT_COLOR: &str = "#6366f1";
@@ -131,6 +193,14 @@ pub async fn create_task(
         return Err(ApiError::BadRequest("invalid color"));
     }
 
+    // Validate collaborators
+    let collaborator_oids = parse_and_validate_collaborators(
+        &state.db,
+        &org.id,
+        body.collaborator_ids.as_deref().unwrap_or(&[]),
+    )
+    .await?;
+
     let task = Task::create(
         &state.db,
         org.id,
@@ -139,10 +209,11 @@ pub async fn create_task(
         title,
         body.description,
         color,
+        collaborator_oids,
     )
     .await?;
 
-    let api = ApiTask::from(&task);
+    let api = task_to_api(&state.db, &task, &user_id.0).await?;
     state.presence.broadcast(
         &org.id.to_hex(),
         &json!({ "type": "task_created", "payload": &api }).to_string(),
@@ -162,7 +233,11 @@ pub async fn list_tasks(
         .ok_or(ApiError::Unauthorized("unauthorized"))?;
 
     let tasks = Task::find_for_org(&state.db, &org.id).await?;
-    Ok(Json(tasks.iter().map(ApiTask::from).collect()))
+    let mut api_tasks = Vec::with_capacity(tasks.len());
+    for task in &tasks {
+        api_tasks.push(task_to_api(&state.db, task, &user_id.0).await?);
+    }
+    Ok(Json(api_tasks))
 }
 
 pub async fn update_task(
@@ -236,6 +311,14 @@ pub async fn update_task(
             .ok_or(ApiError::BadRequest("assignee is not a member of this org"))?;
     }
 
+    // Validate collaborators if provided
+    let new_collaborator_ids = match body.collaborator_ids {
+        Some(ref ids) => Some(
+            parse_and_validate_collaborators(&state.db, &task.org_id, ids).await?,
+        ),
+        None => None,
+    };
+
     let updated = Task::update(
         &state.db,
         &task_oid,
@@ -245,11 +328,12 @@ pub async fn update_task(
         drop_reason_override,
         body.color,
         new_assignee,
+        new_collaborator_ids,
     )
     .await?
     .ok_or(ApiError::NotFound("task not found"))?;
 
-    let api = ApiTask::from(&updated);
+    let api = task_to_api(&state.db, &updated, &user_id.0).await?;
     state.presence.broadcast(
         &updated.org_id.to_hex(),
         &json!({ "type": "task_updated", "payload": &api }).to_string(),
@@ -327,4 +411,79 @@ pub async fn delete_task(
     } else {
         Err(ApiError::NotFound("task not found"))
     }
+}
+
+pub async fn upvote_task(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<UserId>,
+    Path(task_id): Path<String>,
+) -> Result<Json<ApiTask>, ApiError> {
+    let task_oid = parse_oid(&task_id)?;
+
+    let task = Task::find_by_id(&state.db, &task_oid)
+        .await?
+        .ok_or(ApiError::NotFound("task not found"))?;
+
+    OrgMember::find(&state.db, &task.org_id, &user_id.0)
+        .await?
+        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+
+    let updated = Task::add_upvote(&state.db, &task_oid, &user_id.0)
+        .await?
+        .ok_or(ApiError::NotFound("task not found"))?;
+
+    let api = task_to_api(&state.db, &updated, &user_id.0).await?;
+    state.presence.broadcast(
+        &updated.org_id.to_hex(),
+        &json!({ "type": "task_updated", "payload": &api }).to_string(),
+    );
+
+    Ok(Json(api))
+}
+
+pub async fn remove_upvote(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<UserId>,
+    Path(task_id): Path<String>,
+) -> Result<Json<ApiTask>, ApiError> {
+    let task_oid = parse_oid(&task_id)?;
+
+    let task = Task::find_by_id(&state.db, &task_oid)
+        .await?
+        .ok_or(ApiError::NotFound("task not found"))?;
+
+    OrgMember::find(&state.db, &task.org_id, &user_id.0)
+        .await?
+        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+
+    let updated = Task::remove_upvote(&state.db, &task_oid, &user_id.0)
+        .await?
+        .ok_or(ApiError::NotFound("task not found"))?;
+
+    let api = task_to_api(&state.db, &updated, &user_id.0).await?;
+    state.presence.broadcast(
+        &updated.org_id.to_hex(),
+        &json!({ "type": "task_updated", "payload": &api }).to_string(),
+    );
+
+    Ok(Json(api))
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/// Parse a list of string IDs as ObjectIds and verify each is an org member.
+async fn parse_and_validate_collaborators(
+    db: &mongodb::Database,
+    org_id: &ObjectId,
+    ids: &[String],
+) -> Result<Vec<ObjectId>, ApiError> {
+    let mut oids = Vec::with_capacity(ids.len());
+    for s in ids {
+        let oid = parse_oid(s)?;
+        OrgMember::find(db, org_id, &oid)
+            .await?
+            .ok_or(ApiError::BadRequest("collaborator is not a member of this org"))?;
+        oids.push(oid);
+    }
+    Ok(oids)
 }

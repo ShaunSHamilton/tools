@@ -1,0 +1,21 @@
+# Roadmap
+
+- [x] rename ability
+  - feat: add ability to change display name
+  - feat: add settings page for user
+- [x] email hiding
+  - feat: hide email addresses of org members to all but admins
+- [x] task upvoting
+  - feat: add upvoting to tasks
+  - one per task per user
+- [x] task collab
+  - feat: add ability to assign 1+ org members to a task
+- [x] GitHub Flavoured Markdown
+  - feat: add markdown support to task titles and descriptions
+  - feat: improve text editing and previewing
+  - clicking edit on a task should open raw markdown text to edit
+  - preview of task should show rendered markdown
+  - clicking on a task should open it in a modal to preview rendered markdown
+- [x] disable cursor position
+  - feat: add setting to user to toggle live cursors or not
+  - ensure server is not sending/receiving cursor events at all for user

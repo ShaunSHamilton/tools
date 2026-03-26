@@ -2,6 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { apiFetch } from '../lib/api'
 
+export interface TaskCollaborator {
+  id: string
+  name: string
+  picture: string | null
+}
+
 export interface Task {
   id: string
   org_id: string
@@ -13,6 +19,9 @@ export interface Task {
   drop_reason: string | null
   color: string
   position: string
+  upvote_count: number
+  user_has_upvoted: boolean
+  collaborators: TaskCollaborator[]
   created_at: string
   updated_at: string
 }
@@ -33,6 +42,7 @@ export function useCreateTask(orgId: string) {
       title: string
       description?: string
       color?: string
+      collaborator_ids?: string[]
     }) =>
       apiFetch<Task>(`/api/orgs/${orgId}/tasks`, {
         method: 'POST',
@@ -57,11 +67,32 @@ export function useUpdateTask(orgId: string) {
       drop_reason?: string | null
       color?: string
       assignee_id?: string
+      collaborator_ids?: string[]
     }) =>
       apiFetch<Task>(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
       }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', orgId] }),
+    onError: (err: Error) => toast.error(err.message),
+  })
+}
+
+export function useUpvoteTask(orgId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (taskId: string) =>
+      apiFetch<Task>(`/api/tasks/${taskId}/upvote`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', orgId] }),
+    onError: (err: Error) => toast.error(err.message),
+  })
+}
+
+export function useRemoveUpvote(orgId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (taskId: string) =>
+      apiFetch<Task>(`/api/tasks/${taskId}/upvote`, { method: 'DELETE' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', orgId] }),
     onError: (err: Error) => toast.error(err.message),
   })

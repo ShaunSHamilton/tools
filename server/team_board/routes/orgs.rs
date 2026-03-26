@@ -104,9 +104,11 @@ pub async fn get_org(
     Path(org_id): Path<String>,
 ) -> Result<Json<OrgDetailResponse>, ApiError> {
     let org = require_org(&state, &org_id).await?;
-    require_member(&state, &org.id, &user_id.0).await?;
+    let requester = require_member(&state, &org.id, &user_id.0).await?;
+    let requester_is_admin = requester.role == Role::Admin;
 
-    let members = OrgMember::find_members_with_users(&state.db, &org.id).await?;
+    let members =
+        OrgMember::find_members_with_users(&state.db, &org.id, requester_is_admin).await?;
 
     Ok(Json(OrgDetailResponse {
         org: ApiOrg::from(&org),
@@ -350,8 +352,10 @@ pub async fn accept_invite(
     OrgMember::add(&state.db, invite.org_id, user_id.0, Role::Member).await?;
     Invitation::set_status(&state.db, &invite_oid, InvitationStatus::Accepted).await?;
 
-    // Broadcast the new member to all connections in the org
-    let members = OrgMember::find_members_with_users(&state.db, &invite.org_id).await?;
+    // Broadcast the new member to all connections in the org.
+    // Emails are hidden in the broadcast payload (requester_is_admin = false) because
+    // the WebSocket message is fanned out to every connected client regardless of role.
+    let members = OrgMember::find_members_with_users(&state.db, &invite.org_id, false).await?;
     if let Some(new_member) = members.iter().find(|m| m.user.id == user_id.0.to_hex()) {
         state.presence.broadcast(
             &invite.org_id.to_hex(),

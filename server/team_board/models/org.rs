@@ -191,9 +191,13 @@ impl OrgMember {
     }
 
     /// Returns members with their user documents joined in Rust (no $lookup needed at this scale).
+    ///
+    /// `requester_is_admin` controls whether email addresses are included in the
+    /// response. Admins see all emails; regular members see `null` / no email field.
     pub async fn find_members_with_users(
         db: &Database,
         org_id: &ObjectId,
+        requester_is_admin: bool,
     ) -> mongodb::error::Result<Vec<ApiMember>> {
         let members: Vec<OrgMember> = Self::collection(db)
             .find(doc! { "org_id": org_id })
@@ -214,7 +218,11 @@ impl OrgMember {
             .into_iter()
             .filter_map(|m| {
                 users.iter().find(|u| u.id == m.user_id).map(|u| ApiMember {
-                    user: ApiUser::from(u),
+                    user: if requester_is_admin {
+                        ApiUser::from(u)
+                    } else {
+                        ApiUser::without_email(u)
+                    },
                     role: format!("{:?}", m.role).to_lowercase(),
                     joined_at: m.joined_at.to_string(),
                 })
