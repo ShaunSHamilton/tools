@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Navigate } from '@tanstack/react-router'
+import { Navigate, useNavigate } from '@tanstack/react-router'
 import { useCurrentUser } from './hooks/useCurrentUser'
 import { useTheme } from './hooks/useTheme'
 import { NotificationBell } from './components/NotificationBell'
@@ -17,6 +17,7 @@ function App() {
   const [selectedOrg, setSelectedOrg] = useState<Org | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { data: user, status } = useCurrentUser()
   const { theme, toggleTheme } = useTheme()
 
@@ -33,7 +34,7 @@ function App() {
       // best-effort
     }
     queryClient.clear()
-    setSelectedOrg(null)
+    navigate({ to: '/login' })
   }
 
   if (status === 'pending') return <LoadingScreen />

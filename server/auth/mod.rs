@@ -45,7 +45,7 @@ pub async fn logout(
     if let Err(e) = Session::delete_by_session_id(&state.db, &session_cookie.0).await {
         tracing::warn!(error = %e, "failed to delete session on logout");
     }
-    (StatusCode::NO_CONTENT, jar.remove(Cookie::from("sid")))
+    (StatusCode::NO_CONTENT, jar.remove(Cookie::build("sid").path("/")))
 }
 
 /// Return the currently authenticated user.
