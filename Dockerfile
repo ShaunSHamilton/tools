@@ -28,6 +28,7 @@ RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static pkgconf
 COPY server/ server/
 COPY prisma/ prisma/
 COPY Cargo.toml Cargo.lock ./
+COPY CHANGELOG.md .
 # Copy frontend build to the 'dist' directory for the server to use
 COPY --from=frontend_builder /app/dist /app/dist
 
