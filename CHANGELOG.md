@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-26
+
+### Added
+
+- feat(team-board): add app-release notifications, member sorting, and changelog automation
+
+### Changed
+
+- chore: add tsbuildinfo to gitignore
+- chore: delete tsbuildinfo
+
 ## [0.5.0] - 2026-03-26
 
 ### Added
