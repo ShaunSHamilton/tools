@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-03-30
+
+### Added
+
+- feat: notify task assignees on upvote and suggestion
+
 ## [0.7.0] - 2026-03-26
 
 ### Added
