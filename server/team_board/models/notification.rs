@@ -19,6 +19,17 @@ pub enum NotificationPayload {
         version: String,
         notes: String,
     },
+    TaskUpvoted {
+        task_id: ObjectId,
+        task_title: String,
+        upvoted_by: String,
+    },
+    SuggestionAdded {
+        task_id: ObjectId,
+        task_title: String,
+        suggestion_content: String,
+        suggested_by: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,6 +95,19 @@ impl Notification {
                         "type": "app_release",
                         "version": version,
                         "notes": notes,
+                    }),
+                    NotificationPayload::TaskUpvoted { task_id, task_title, upvoted_by } => json!({
+                        "type": "task_upvoted",
+                        "task_id": task_id.to_hex(),
+                        "task_title": task_title,
+                        "upvoted_by": upvoted_by,
+                    }),
+                    NotificationPayload::SuggestionAdded { task_id, task_title, suggestion_content, suggested_by } => json!({
+                        "type": "suggestion_added",
+                        "task_id": task_id.to_hex(),
+                        "task_title": task_title,
+                        "suggestion_content": suggestion_content,
+                        "suggested_by": suggested_by,
                     }),
                 };
                 json!({

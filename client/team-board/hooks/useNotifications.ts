@@ -16,7 +16,22 @@ export interface AppReleasePayload {
   notes: string
 }
 
-export type NotificationPayload = OrgInvitePayload | AppReleasePayload
+export interface TaskUpvotedPayload {
+  type: 'task_upvoted'
+  task_id: string
+  task_title: string
+  upvoted_by: string
+}
+
+export interface SuggestionAddedPayload {
+  type: 'suggestion_added'
+  task_id: string
+  task_title: string
+  suggestion_content: string
+  suggested_by: string
+}
+
+export type NotificationPayload = OrgInvitePayload | AppReleasePayload | TaskUpvotedPayload | SuggestionAddedPayload
 
 export interface AppNotification {
   id: string

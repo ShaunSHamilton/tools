@@ -89,6 +89,44 @@ export function NotificationBell() {
                       </div>
                     )}
 
+                    {payload.type === 'task_upvoted' && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-800 dark:text-gray-200">
+                          <span className="font-medium">{payload.upvoted_by}</span>
+                          {' upvoted '}
+                          <span className="font-medium">{payload.task_title}</span>
+                        </p>
+                        {!n.read && (
+                          <button
+                            onClick={() => markRead.mutate(n.id)}
+                            className="text-xs px-3 py-1 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500"
+                          >
+                            Dismiss
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {payload.type === 'suggestion_added' && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-800 dark:text-gray-200">
+                          <span className="font-medium">{payload.suggested_by}</span>
+                          {' suggested on '}
+                          <span className="font-medium">{payload.task_title}</span>
+                          {': '}
+                          <span className="text-gray-600 dark:text-gray-400">{payload.suggestion_content}</span>
+                        </p>
+                        {!n.read && (
+                          <button
+                            onClick={() => markRead.mutate(n.id)}
+                            className="text-xs px-3 py-1 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500"
+                          >
+                            Dismiss
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     {payload.type === 'app_release' && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">

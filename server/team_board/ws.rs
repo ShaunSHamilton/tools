@@ -121,6 +121,27 @@ impl OrgPresence {
             .collect()
     }
 
+    /// Send `msg` to all connections belonging to `target_user_id` in `org_id`.
+    pub fn send_to_user(&self, org_id: &str, target_user_id: &ObjectId, msg: &str) {
+        let Some(org_conns) = self.connections.get(org_id) else {
+            return;
+        };
+        let dead: Vec<u64> = org_conns
+            .iter()
+            .filter(|e| &e.value().user_id == target_user_id)
+            .filter_map(|e| {
+                e.value()
+                    .tx
+                    .send(Message::Text(msg.to_owned().into()))
+                    .err()
+                    .map(|_| *e.key())
+            })
+            .collect();
+        for id in dead {
+            org_conns.remove(&id);
+        }
+    }
+
     /// Send `msg` to a specific connection by conn_id. Returns true if sent, false if dead.
     fn send_to(&self, org_id: &str, conn_id: u64, msg: &str) -> bool {
         let Some(org_conns) = self.connections.get(org_id) else {

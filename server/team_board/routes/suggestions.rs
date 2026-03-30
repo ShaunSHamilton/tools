@@ -15,6 +15,7 @@ use crate::{
         error::ApiError,
         middleware::auth::UserId,
         models::{
+            notification::{Notification, NotificationPayload},
             org::OrgMember,
             suggestion::Suggestion,
             task::Task,
@@ -121,6 +122,44 @@ pub async fn create_suggestion(
         &task.org_id.to_hex(),
         &json!({ "type": "suggestion_created", "payload": &api }).to_string(),
     );
+
+    // Notify the task assignee if someone else added a suggestion
+    if user_id.0 != task.assignee_id {
+        let db = state.db.clone();
+        let presence = state.presence.clone();
+        let org_id_hex = task.org_id.to_hex();
+        let assignee_id = task.assignee_id;
+        let task_id = task.id;
+        let task_title = task.title.clone();
+        let suggestion_content = suggestion.content.clone();
+        let suggester_id = user_id.0;
+        tokio::spawn(async move {
+            let suggested_by = User::find_by_id(&db, &suggester_id)
+                .await
+                .ok()
+                .flatten()
+                .map(|u| u.name)
+                .unwrap_or_else(|| "someone".to_string());
+            match Notification::create(
+                &db,
+                assignee_id,
+                NotificationPayload::SuggestionAdded {
+                    task_id,
+                    task_title,
+                    suggestion_content,
+                    suggested_by,
+                },
+            )
+            .await
+            {
+                Ok(_) => {
+                    let msg = serde_json::json!({ "type": "notification" }).to_string();
+                    presence.send_to_user(&org_id_hex, &assignee_id, &msg);
+                }
+                Err(e) => tracing::error!(error = %e, "failed to create SuggestionAdded notification"),
+            }
+        });
+    }
 
     Ok((StatusCode::CREATED, Json(api)))
 }

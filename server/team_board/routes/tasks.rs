@@ -16,6 +16,7 @@ use crate::{
         error::ApiError,
         middleware::auth::UserId,
         models::{
+            notification::{Notification, NotificationPayload},
             org::OrgMember,
             task::{Task, TaskStatus},
             user::User,
@@ -443,6 +444,37 @@ pub async fn upvote_task(
         &updated.org_id.to_hex(),
         &json!({ "type": "task_updated", "payload": &api }).to_string(),
     );
+
+    // Notify the task assignee if someone else upvoted their task
+    if user_id.0 != updated.assignee_id {
+        let db = state.db.clone();
+        let presence = state.presence.clone();
+        let org_id_hex = updated.org_id.to_hex();
+        let assignee_id = updated.assignee_id;
+        let task_title = updated.title.clone();
+        let upvoter_id = user_id.0;
+        tokio::spawn(async move {
+            let upvoted_by = User::find_by_id(&db, &upvoter_id)
+                .await
+                .ok()
+                .flatten()
+                .map(|u| u.name)
+                .unwrap_or_else(|| "someone".to_string());
+            match Notification::create(
+                &db,
+                assignee_id,
+                NotificationPayload::TaskUpvoted { task_id: task_oid, task_title, upvoted_by },
+            )
+            .await
+            {
+                Ok(_) => {
+                    let msg = serde_json::json!({ "type": "notification" }).to_string();
+                    presence.send_to_user(&org_id_hex, &assignee_id, &msg);
+                }
+                Err(e) => tracing::error!(error = %e, "failed to create TaskUpvoted notification"),
+            }
+        });
+    }
 
     Ok(Json(api))
 }
