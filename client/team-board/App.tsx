@@ -10,7 +10,7 @@ import { OrgPage } from './components/OrgPage'
 import { ConnectionStatus } from './components/ConnectionStatus'
 import { ThemeToggle } from './components/ThemeToggle'
 import type { Org } from './hooks/useOrgs'
-import { useOrgDetail } from './hooks/useOrgs'
+import { useOrgDetail, useOrgs } from './hooks/useOrgs'
 import type { CurrentUser } from './hooks/useCurrentUser'
 
 function App() {
@@ -20,6 +20,14 @@ function App() {
   const navigate = useNavigate()
   const { data: user, status } = useCurrentUser()
   const { theme, toggleTheme } = useTheme()
+  const { data: orgs } = useOrgs()
+
+  // Auto-select the first org on load
+  useEffect(() => {
+    if (!selectedOrg && orgs && orgs.length > 0) {
+      setSelectedOrg(orgs[0])
+    }
+  }, [orgs, selectedOrg])
 
   // Close sidebar when org is selected on mobile
   function handleSelectOrg(org: Org) {
