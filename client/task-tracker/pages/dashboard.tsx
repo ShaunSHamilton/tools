@@ -2,11 +2,11 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/task-tracker/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/task-tracker/components/ui/card";
-import { useAuth } from "@/task-tracker/contexts/auth-context";
+import { useCurrentUser } from "@/team-board/hooks/useCurrentUser";
 import { github, orgs, ApiError } from "@/task-tracker/lib/api";
 
 export function DashboardPage() {
-  const { user } = useAuth();
+  const { data: user } = useCurrentUser();
 
   const { data: ghStatus, isLoading: statusLoading } = useQuery({
     queryKey: ["github", "status"],

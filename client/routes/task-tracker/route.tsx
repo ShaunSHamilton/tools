@@ -1,13 +1,8 @@
 import { createRoute, Outlet } from "@tanstack/react-router";
 import { rootRoute } from "../__root";
-import { AuthProvider } from "@/task-tracker/contexts/auth-context";
 
 function TTLayout() {
-  return (
-    <AuthProvider>
-      <Outlet />
-    </AuthProvider>
-  );
+  return <Outlet />;
 }
 
 export const ttLayoutRoute = createRoute({

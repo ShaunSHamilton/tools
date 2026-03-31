@@ -1,18 +1,18 @@
 import { createRoute, Outlet, Navigate } from "@tanstack/react-router";
 import { ttLayoutRoute } from "./route";
-import { useAuth } from "@/task-tracker/contexts/auth-context";
+import { useCurrentUser } from "@/team-board/hooks/useCurrentUser";
 import { AppLayout } from "@/task-tracker/components/app-layout";
 
 function TTProtected() {
-  const { user, isLoading } = useAuth();
-  if (isLoading) {
+  const { data: user, status } = useCurrentUser();
+  if (status === "pending") {
     return (
       <div className="flex h-screen items-center justify-center">
         <span className="text-muted-foreground text-sm">Loading...</span>
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" />;
+  if (status === "error" || !user) return <Navigate to="/login" />;
   return (
     <AppLayout>
       <Outlet />
