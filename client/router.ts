@@ -10,6 +10,9 @@ import { homeRoute } from "./routes/index";
 // Shared login
 import { loginRoute } from "./routes/login";
 
+// Settings (universal)
+import { settingsRoute } from "./routes/settings";
+
 // Exam Creator
 import { ecLayoutRoute } from "./routes/exam-creator/route";
 import { ecLandingRoute } from "./routes/exam-creator/index";
@@ -25,6 +28,18 @@ import { tbLayoutRoute } from "./routes/team-board/route";
 import { tbIndexRoute } from "./routes/team-board/index";
 import { tbSettingsRoute } from "./routes/team-board/settings";
 
+// Task Tracker
+import { ttLayoutRoute } from "./routes/task-tracker/route";
+import { ttIndexRoute } from "./routes/task-tracker/index";
+import { ttProtectedRoute } from "./routes/task-tracker/_protected";
+import { ttDashboardRoute } from "./routes/task-tracker/_protected.dashboard";
+import { ttReportsRoute } from "./routes/task-tracker/_protected.reports";
+import { ttReportViewRoute } from "./routes/task-tracker/_protected.reports_.$id";
+import { ttOrgNewRoute } from "./routes/task-tracker/_protected.orgs.new";
+import { ttOrgDetailRoute } from "./routes/task-tracker/_protected.orgs.$slug";
+import { ttOrgInviteAcceptRoute } from "./routes/task-tracker/_protected.orgs.invites.$token";
+import { ttShareRoute } from "./routes/task-tracker/share.$token";
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 1000 * 60, retry: 1 },
@@ -36,6 +51,8 @@ const routeTree = rootRoute.addChildren([
   homeRoute,
   // Shared login
   loginRoute,
+  // Settings
+  settingsRoute,
   // Exam Creator
   ecLayoutRoute.addChildren([
     ecLandingRoute,
@@ -50,6 +67,19 @@ const routeTree = rootRoute.addChildren([
   tbLayoutRoute.addChildren([
     tbIndexRoute,
     tbSettingsRoute,
+  ]),
+  // Task Tracker
+  ttLayoutRoute.addChildren([
+    ttIndexRoute,
+    ttShareRoute,
+    ttProtectedRoute.addChildren([
+      ttDashboardRoute,
+      ttReportsRoute,
+      ttReportViewRoute,
+      ttOrgNewRoute,
+      ttOrgDetailRoute,
+      ttOrgInviteAcceptRoute,
+    ]),
   ]),
 ]);
 

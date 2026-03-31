@@ -142,6 +142,12 @@ export default defineConfig(async () => ({
         changeOrigin: true,
         secure: false,
       },
+      // universal auth
+      "/api": {
+        target: `http://127.0.0.1:${process.env.PORT ?? "8080"}`,
+        changeOrigin: true,
+        secure: false,
+      },
       // team-board
       "/team-board/api": {
         target: `http://127.0.0.1:${process.env.PORT ?? "8080"}`,
