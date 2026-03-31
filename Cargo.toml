@@ -39,7 +39,7 @@ sentry = { version = "0.46.0", features = [
   "tracing",
 ] }
 jsonwebtoken = "9"
-reqwest = { version = "0.13", features = ["json", "multipart"] }
+reqwest = { version = "0.13", features = ["json", "multipart", "form"] }
 http = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }

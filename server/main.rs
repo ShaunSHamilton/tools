@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, sync::Arc};
 use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
@@ -47,7 +47,81 @@ async fn main() {
     let tb_db = server::team_board::db::connect(&tb_config).await;
     let tb_state = server::team_board::app::build_state(&tb_config, tb_db);
     let shared_api = server::team_board::app::create_shared_api_router(tb_state.clone());
-    let tb_router = server::team_board::app::create_app(tb_state);
+    let tb_router = server::team_board::app::create_app(tb_state.clone());
+
+    // ── Task Tracker ─────────────────────────────────────────────────────────
+    info!("Initialising task-tracker…");
+    let tt_config = server::task_tracker::shared::config::Config::from_env()
+        .expect("task-tracker config");
+    let tt_db = server::task_tracker::shared::db::connect(&tt_config.mongodb_uri)
+        .await
+        .expect("task-tracker MongoDB");
+
+    // Reuse the same cookie key as team-board so both apps can read the shared
+    // session cookie.
+    let mut key_bytes = [0u8; 64];
+    let src = tb_config.cookie_key.as_bytes();
+    key_bytes[..64].copy_from_slice(&src[..64]);
+    let tt_cookie_key = axum_extra::extract::cookie::Key::from(&key_bytes);
+
+    // Job channels
+    let (report_tx, mut report_rx) =
+        tokio::sync::mpsc::unbounded_channel::<server::task_tracker::shared::jobs::report_generation::ReportGenerationJob>();
+    let (pdf_tx, mut pdf_rx) =
+        tokio::sync::mpsc::unbounded_channel::<server::task_tracker::shared::jobs::pdf_export::PdfExportJob>();
+
+    // Spawn report generation worker
+    let rw_state = Arc::new(
+        server::task_tracker::worker::jobs::report_generation::ReportWorkerState {
+            db: tt_db.clone(),
+            tb_db: tb_state.db.clone(),
+            anthropic: server::task_tracker::worker::report::anthropic::AnthropicProvider::new(
+                tt_config.anthropic_api_key.clone(),
+            ),
+            http: reqwest::Client::new(),
+        },
+    );
+    tokio::spawn(async move {
+        while let Some(job) = report_rx.recv().await {
+            let state = Arc::clone(&rw_state);
+            tokio::spawn(async move {
+                if let Err(e) =
+                    server::task_tracker::worker::jobs::report_generation::handle(job, state).await
+                {
+                    tracing::error!(error = %e, "report generation worker error");
+                }
+            });
+        }
+    });
+
+    // Spawn PDF export worker
+    let pw_state = Arc::new(
+        server::task_tracker::worker::jobs::pdf_export::PdfWorkerState {
+            db: tt_db.clone(),
+            config: tt_config.clone(),
+        },
+    );
+    tokio::spawn(async move {
+        while let Some(job) = pdf_rx.recv().await {
+            let state = Arc::clone(&pw_state);
+            tokio::spawn(async move {
+                if let Err(e) =
+                    server::task_tracker::worker::jobs::pdf_export::handle(job, state).await
+                {
+                    tracing::error!(error = %e, "pdf export worker error");
+                }
+            });
+        }
+    });
+
+    let tt_router = server::task_tracker::api::router::build(
+        tt_db,
+        tb_state.db.clone(),
+        tt_config,
+        tt_cookie_key,
+        report_tx,
+        pdf_tx,
+    );
 
     // ── Combined router ─────────────────────────────────────────────────────
     let dist_dir = "dist";
@@ -55,6 +129,7 @@ async fn main() {
         .nest("/api", shared_api)
         .nest("/exam-creator", ec_router)
         .nest("/team-board", tb_router)
+        .nest("/task-tracker", tt_router)
         .fallback_service(
             ServeDir::new(dist_dir).fallback(ServeFile::new(format!("{dist_dir}/index.html"))),
         );
