@@ -42,12 +42,11 @@ import {
 } from "recharts/types/component/DefaultTooltipContent";
 import { UsersOnPageAvatars } from "../components/users-on-page-avatars";
 import { Loader2 } from "lucide-react";
+import { NavBar } from "@/components/nav-bar";
 
 export function Edit() {
   const { id } = useParams({ from: "/exam-creator/attempts/$id" });
   const { user, logout } = useContext(AuthContext)!;
-
-  const navigate = useNavigate();
 
   const attemptQuery = useQuery({
     queryKey: ["attempt", id],
@@ -67,23 +66,16 @@ export function Edit() {
   });
 
   return (
-    <div className="min-h-screen py-14 px-2 relative">
-      <div className="flex items-center fixed top-3 left-8 z-[101] gap-3">
-        <button
-          className="border border-teal-500 text-teal-500 hover:bg-teal-500/10 rounded-md px-3 py-1 text-sm font-medium"
-          onClick={() => navigate({ to: "/exam-creator/attempts" })}
-        >
-          Back to Attempts
-        </button>
-        <button
-          className="border border-red-500 text-red-500 hover:bg-red-500/10 rounded-md px-3 py-1 text-sm font-medium"
-          onClick={() => logout()}
-        >
-          Logout
-        </button>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <NavBar
+        appName="Exam Creator"
+        appHref="/exam-creator"
+        userName={user?.name}
+        onLogout={logout}
+      />
       {/* Floating widget: top right */}
       <UsersEditing />
+      <div className="py-14 px-2 flex-1">
       <div className="flex items-center justify-center">
         {attemptQuery.isPending || eventsQuery.isPending ? (
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-foreground border-t-transparent" />
@@ -95,6 +87,7 @@ export function Edit() {
         ) : (
           <EditAttempt attempt={attemptQuery.data} events={eventsQuery.data} />
         )}
+      </div>
       </div>
     </div>
   );

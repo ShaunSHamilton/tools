@@ -6,9 +6,10 @@ import { AuthContext } from "../contexts/auth";
 import { LandingCard } from "../components/landing-card";
 import { AttemptsLandingCard } from "../components/attempt/landing-card";
 import { Header } from "../components/ui/header";
+import { NavBar } from "@/components/nav-bar";
 
 export function Landing() {
-  const { logout } = useContext(AuthContext)!;
+  const { user, logout } = useContext(AuthContext)!;
   const { updateActivity } = useContext(UsersWebSocketActivityContext)!;
   const navigate = useNavigate();
 
@@ -20,14 +21,14 @@ export function Landing() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background py-12 px-4">
-      {/* Logout button top right */}
-      <button
-        className="fixed top-3 right-8 z-[101] border border-red-500 text-red-500 hover:bg-red-500/10 rounded-md px-3 py-1 text-sm font-medium"
-        onClick={() => logout()}
-      >
-        Logout
-      </button>
+    <div className="min-h-screen bg-background flex flex-col">
+      <NavBar
+        appName="Exam Creator"
+        appHref="/exam-creator"
+        userName={user?.name}
+        onLogout={logout}
+      />
+      <div className="py-12 px-4 flex-1">
       <div className="flex items-center justify-center">
         <div className="flex flex-col gap-8 w-full max-w-7xl">
           {/* <Flex
@@ -80,6 +81,7 @@ export function Landing() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import type {
   ExamCreatorExam,
   ExamEnvironmentAnswer,
@@ -17,12 +17,11 @@ import { parseMarkdown, secondsToHumanReadable } from "../utils/question";
 import { TimeTakenDistribution } from "../components/time-taken-distribution";
 import { Tooltip } from "../components/tooltip";
 import { TitleStat } from "../components/ui/title-stat";
+import { NavBar } from "@/components/nav-bar";
 
 export function View() {
   const { id } = useParams({ from: "/exam-creator/metrics/exams/$id" });
   const { user, logout } = useContext(AuthContext)!;
-
-  const navigate = useNavigate();
 
   const examMetricsQuery = useQuery({
     queryKey: ["metrics", id],
@@ -33,22 +32,14 @@ export function View() {
   });
 
   return (
-    <div className="min-h-screen py-8 px-2 relative">
-      {/* Back to Dashboard and Logout buttons */}
-      <div className="flex items-center fixed top-3 left-8 z-[101] gap-3">
-        <button
-          className="border border-teal-500 text-teal-500 hover:bg-teal-500/10 rounded-md px-3 py-1 text-sm font-medium"
-          onClick={() => navigate({ to: "/exam-creator/metrics" })}
-        >
-          Back to Exams Metrics
-        </button>
-        <button
-          className="border border-red-500 text-red-500 hover:bg-red-500/10 rounded-md px-3 py-1 text-sm font-medium"
-          onClick={() => logout()}
-        >
-          Logout
-        </button>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <NavBar
+        appName="Exam Creator"
+        appHref="/exam-creator"
+        userName={user?.name}
+        onLogout={logout}
+      />
+      <div className="py-8 px-2 flex-1">
       <div className="flex items-center justify-center">
         {examMetricsQuery.isFetching || examMetricsQuery.isPending ? (
           <div className="animate-spin rounded-full h-10 w-10 border-2 border-teal-400 border-t-transparent" />
@@ -63,6 +54,7 @@ export function View() {
             generations={examMetricsQuery.data.generations}
           />
         )}
+      </div>
       </div>
     </div>
   );

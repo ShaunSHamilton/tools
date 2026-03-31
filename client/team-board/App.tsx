@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, Navigate, useNavigate } from '@tanstack/react-router'
+import { Navigate, useNavigate } from '@tanstack/react-router'
 import { useCurrentUser, effectiveName } from './hooks/useCurrentUser'
-import { useTheme } from './hooks/useTheme'
 import { NotificationBell } from './components/NotificationBell'
 import { OrgSwitcher } from './components/OrgSwitcher'
 import { BoardView } from './components/BoardView'
 import { OrgPage } from './components/OrgPage'
 import { ConnectionStatus } from './components/ConnectionStatus'
-import { ThemeToggle } from './components/ThemeToggle'
 import type { Org } from './hooks/useOrgs'
 import { useOrgDetail, useOrgs } from './hooks/useOrgs'
 import type { CurrentUser } from './hooks/useCurrentUser'
+import { NavBar } from '@/components/nav-bar'
 
 function App() {
   const [selectedOrg, setSelectedOrg] = useState<Org | null>(null)
@@ -19,7 +18,6 @@ function App() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { data: user, status } = useCurrentUser()
-  const { theme, toggleTheme } = useTheme()
   const { data: orgs } = useOrgs()
 
   // Auto-select the first org on load
@@ -50,44 +48,26 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-white flex flex-col">
-      {/* Header */}
-      <header className="border-b border-gray-200 dark:border-gray-800 px-4 md:px-6 py-3 flex items-center justify-between gap-3 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          {/* Hamburger — mobile only */}
-          <button
-            className="md:hidden p-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-            onClick={() => setSidebarOpen((v) => !v)}
-            aria-label="Toggle sidebar"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          <span className="font-semibold text-gray-900 dark:text-white">Team Board</span>
-        </div>
-
-        <div className="flex items-center gap-2 md:gap-3">
-          <ConnectionStatus />
-          <NotificationBell />
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
-          <span className="hidden sm:block text-sm text-gray-500 dark:text-gray-400">
-            {effectiveName(user)}
-          </span>
-          <Link
-            to="/team-board/settings"
-            className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-          >
-            Settings
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
-          >
-            Sign out
-          </button>
-        </div>
-      </header>
+      <NavBar
+        appName="Team Board"
+        appHref="/team-board"
+        userName={effectiveName(user)}
+        onLogout={handleLogout}
+      >
+        {/* Mobile hamburger */}
+        <button
+          className="md:hidden p-1 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          onClick={() => setSidebarOpen((v) => !v)}
+          aria-label="Toggle sidebar"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+              d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <ConnectionStatus />
+        <NotificationBell />
+      </NavBar>
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Mobile sidebar backdrop */}
