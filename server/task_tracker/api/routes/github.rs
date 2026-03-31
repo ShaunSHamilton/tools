@@ -31,7 +31,7 @@ pub async fn connect_start(
     State(state): State<AppState>,
     auth: AuthUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    let connect_state = jwt::encode_connect_state(auth.user_id, &state.config.jwt_secret)
+    let connect_state = jwt::encode_connect_state(auth.user_id, &state.config.github_client_secret)
         .map_err(|e| AppError::Internal(e))?;
 
     let redirect_uri = format!("{}/github/connect/callback", state.config.app_base_url);
@@ -58,7 +58,7 @@ pub async fn connect_callback(
     Query(params): Query<ConnectCallback>,
 ) -> Result<impl IntoResponse, ApiError> {
     // Verify and decode the state JWT to recover the user_id
-    let claims = jwt::decode_connect_state(&params.state, &state.config.jwt_secret)
+    let claims = jwt::decode_connect_state(&params.state, &state.config.github_client_secret)
         .map_err(|_| AppError::BadRequest("invalid or expired connect state".into()))?;
 
     let user_id = ObjectId::parse_str(&claims.sub)
