@@ -15,10 +15,10 @@ use tower_http::{
     trace::TraceLayer,
 };
 
-use crate::task_tracker::api::routes::{exports, github, health, orgs, reports, share};
+use crate::task_tracker::api::routes::{github, health, orgs, reports, share};
 use crate::task_tracker::shared::{
     config::Config,
-    jobs::{pdf_export::PdfExportJob, report_generation::ReportGenerationJob},
+    jobs::report_generation::ReportGenerationJob,
 };
 
 use crate::task_tracker::api::middleware::rate_limit;
@@ -31,7 +31,6 @@ pub struct AppState {
     pub http: Client,
     pub cookie_key: Key,
     pub report_queue: UnboundedSender<ReportGenerationJob>,
-    pub pdf_export_queue: UnboundedSender<PdfExportJob>,
 }
 
 impl FromRef<AppState> for Key {
@@ -46,7 +45,6 @@ pub fn build(
     config: Config,
     cookie_key: Key,
     report_queue: UnboundedSender<ReportGenerationJob>,
-    pdf_export_queue: UnboundedSender<PdfExportJob>,
 ) -> Router {
     let state = AppState {
         db,
@@ -55,7 +53,6 @@ pub fn build(
         http: Client::new(),
         cookie_key,
         report_queue,
-        pdf_export_queue,
     };
 
     let limiter = rate_limit::new_limiter(30);
@@ -87,10 +84,6 @@ pub fn build(
             get(reports::get_orgs).put(reports::update_orgs),
         )
         .route("/reports/{id}/share", post(reports::share))
-        .route(
-            "/reports/{id}/export/pdf",
-            post(exports::create_pdf_export).get(exports::get_pdf_export),
-        )
         // Organisations
         .route("/orgs", post(orgs::create).get(orgs::list))
         .route("/orgs/{slug}", get(orgs::detail))

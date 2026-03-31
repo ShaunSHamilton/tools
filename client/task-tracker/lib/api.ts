@@ -114,21 +114,7 @@ export const reports = {
     request<{ url: string; token: string }>(`/reports/${id}/share`, {
       method: "POST",
     }),
-
-  exportPdf: (id: string) =>
-    request<PdfExport>(`/reports/${id}/export/pdf`, { method: "POST" }),
-
-  getExport: (id: string) =>
-    request<PdfExport>(`/reports/${id}/export/pdf`),
 };
-
-export interface PdfExport {
-  id: string;
-  status: "pending" | "completed" | "failed";
-  download_url: string | null;
-  error_message?: string | null;
-  created_at: string;
-}
 
 // ─── Orgs ─────────────────────────────────────────────────────────────────────
 

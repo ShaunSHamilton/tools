@@ -67,8 +67,6 @@ async fn main() {
     // Job channels
     let (report_tx, mut report_rx) =
         tokio::sync::mpsc::unbounded_channel::<server::task_tracker::shared::jobs::report_generation::ReportGenerationJob>();
-    let (pdf_tx, mut pdf_rx) =
-        tokio::sync::mpsc::unbounded_channel::<server::task_tracker::shared::jobs::pdf_export::PdfExportJob>();
 
     // Spawn report generation worker
     let rw_state = Arc::new(
@@ -94,33 +92,12 @@ async fn main() {
         }
     });
 
-    // Spawn PDF export worker
-    let pw_state = Arc::new(
-        server::task_tracker::worker::jobs::pdf_export::PdfWorkerState {
-            db: tt_db.clone(),
-            config: tt_config.clone(),
-        },
-    );
-    tokio::spawn(async move {
-        while let Some(job) = pdf_rx.recv().await {
-            let state = Arc::clone(&pw_state);
-            tokio::spawn(async move {
-                if let Err(e) =
-                    server::task_tracker::worker::jobs::pdf_export::handle(job, state).await
-                {
-                    tracing::error!(error = %e, "pdf export worker error");
-                }
-            });
-        }
-    });
-
     let tt_router = server::task_tracker::api::router::build(
         tt_db,
         tb_state.db.clone(),
         tt_config,
         tt_cookie_key,
         report_tx,
-        pdf_tx,
     );
 
     // ── Combined router ─────────────────────────────────────────────────────

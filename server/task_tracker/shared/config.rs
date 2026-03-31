@@ -11,17 +11,8 @@ pub struct Config {
     pub github_client_id: String,
     pub github_client_secret: String,
 
-    // Storage
-    pub do_spaces_key: String,
-    pub do_spaces_secret: String,
-    pub do_spaces_bucket: String,
-    pub do_spaces_endpoint: String,
-
     // LLM
     pub anthropic_api_key: String,
-
-    // Services
-    pub gotenberg_url: String,
 
     // URLs
     pub app_base_url: String,
@@ -42,15 +33,7 @@ impl Config {
             github_client_id: required("GITHUB_CLIENT_ID")?,
             github_client_secret: required("GITHUB_CLIENT_SECRET")?,
 
-            do_spaces_key: required("DO_SPACES_KEY")?,
-            do_spaces_secret: required("DO_SPACES_SECRET")?,
-            do_spaces_bucket: required("DO_SPACES_BUCKET")?,
-            do_spaces_endpoint: required("DO_SPACES_ENDPOINT")?,
-
             anthropic_api_key: required("ANTHROPIC_API_KEY")?,
-
-            gotenberg_url: std::env::var("GOTENBERG_URL")
-                .unwrap_or_else(|_| "http://localhost:3000".into()),
 
             app_base_url: std::env::var("APP_BASE_URL")
                 .unwrap_or_else(|_| "http://localhost:8080".into()),

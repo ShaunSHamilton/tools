@@ -32,28 +32,9 @@ export function ReportViewPage() {
     },
   });
 
-  // PDF export polling
-  const {
-    data: exportData,
-    refetch: refetchExport,
-  } = useQuery({
-    queryKey: ["reports", id, "export"],
-    queryFn: () => reports.getExport(id!),
-    enabled: false, // started manually
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      return status === "pending" ? POLL_INTERVAL_MS : false;
-    },
-  });
-
   const shareMutation = useMutation({
     mutationFn: () => reports.share(id!),
     onSuccess: (data) => setShareUrl(data.url),
-  });
-
-  const exportMutation = useMutation({
-    mutationFn: () => reports.exportPdf(id!),
-    onSuccess: () => refetchExport(),
   });
 
   const deleteMutation = useMutation({
@@ -219,60 +200,29 @@ export function ReportViewPage() {
               </div>
 
               {report.status === "completed" && (
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  {/* Share */}
-                  <div className="flex items-center gap-2">
-                    {shareUrl ? (
-                      <>
-                        <code className="text-muted-foreground text-xs font-mono truncate max-w-40">
-                          {shareUrl}
-                        </code>
-                        <Button variant="outline" size="sm" onClick={handleCopy}>
-                          {copied ? "Copied!" : "Copy"}
-                        </Button>
-                        {mailtoHref && (
-                          <a href={mailtoHref}>
-                            <Button variant="outline" size="sm">Email</Button>
-                          </a>
-                        )}
-                      </>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => shareMutation.mutate()}
-                        disabled={shareMutation.isPending}
-                      >
-                        {shareMutation.isPending ? "Sharing…" : "Share"}
+                <div className="flex items-center gap-2 shrink-0">
+                  {shareUrl ? (
+                    <>
+                      <code className="text-muted-foreground text-xs font-mono truncate max-w-40">
+                        {shareUrl}
+                      </code>
+                      <Button variant="outline" size="sm" onClick={handleCopy}>
+                        {copied ? "Copied!" : "Copy"}
                       </Button>
-                    )}
-                  </div>
-
-                  {/* PDF export */}
-                  {exportData?.status === "completed" && exportData.download_url ? (
-                    <a href={exportData.download_url} target="_blank" rel="noreferrer">
-                      <Button variant="outline" size="sm">Download PDF</Button>
-                    </a>
-                  ) : exportData?.status === "pending" ? (
-                    <Button variant="outline" size="sm" disabled>
-                      Generating PDF…
-                    </Button>
-                  ) : exportData?.status === "failed" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => exportMutation.mutate()}
-                    >
-                      Retry PDF export
-                    </Button>
+                      {mailtoHref && (
+                        <a href={mailtoHref}>
+                          <Button variant="outline" size="sm">Email</Button>
+                        </a>
+                      )}
+                    </>
                   ) : (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => exportMutation.mutate()}
-                      disabled={exportMutation.isPending}
+                      onClick={() => shareMutation.mutate()}
+                      disabled={shareMutation.isPending}
                     >
-                      {exportMutation.isPending ? "Starting…" : "Export PDF"}
+                      {shareMutation.isPending ? "Sharing…" : "Share"}
                     </Button>
                   )}
                 </div>
