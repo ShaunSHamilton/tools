@@ -1,18 +1,50 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 
+export type NavBarColor = "teal" | "violet" | "sky" | "neutral";
+
+const colorStyles: Record<NavBarColor, {
+  header: string;
+  appLink: string;
+  chevron: string;
+}> = {
+  teal: {
+    header: "border-teal-500/25 bg-teal-50/40 dark:bg-teal-950/20",
+    appLink: "font-medium text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors truncate",
+    chevron: "text-teal-300 dark:text-teal-800",
+  },
+  violet: {
+    header: "border-violet-500/25 bg-violet-50/40 dark:bg-violet-950/20",
+    appLink: "font-medium text-violet-600 dark:text-violet-400 hover:text-violet-700 dark:hover:text-violet-300 transition-colors truncate",
+    chevron: "text-violet-300 dark:text-violet-800",
+  },
+  sky: {
+    header: "border-sky-500/25 bg-sky-50/40 dark:bg-sky-950/20",
+    appLink: "font-medium text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors truncate",
+    chevron: "text-sky-300 dark:text-sky-800",
+  },
+  neutral: {
+    header: "border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950",
+    appLink: "font-medium text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 transition-colors truncate",
+    chevron: "text-gray-300 dark:text-gray-700",
+  },
+};
+
 interface NavBarProps {
   appName: string;
   appHref: string;
+  color?: NavBarColor;
   userName?: string;
   onLogout: () => void | Promise<void>;
   /** Extra items rendered between the app name and settings link (e.g. notification bell) */
   children?: ReactNode;
 }
 
-export function NavBar({ appName, appHref, userName, onLogout, children }: NavBarProps) {
+export function NavBar({ appName, appHref, color = "neutral", userName, onLogout, children }: NavBarProps) {
+  const styles = colorStyles[color];
+
   return (
-    <header className="border-b border-gray-200 dark:border-gray-800 px-4 md:px-6 py-3 flex items-center justify-between gap-3 flex-shrink-0 bg-gray-50 dark:bg-gray-950">
+    <header className={`border-b ${styles.header} px-4 md:px-6 py-3 flex items-center justify-between gap-3 flex-shrink-0`}>
       {/* Left: breadcrumb nav */}
       <nav className="flex items-center gap-1.5 text-sm min-w-0">
         <Link
@@ -25,13 +57,10 @@ export function NavBar({ appName, appHref, userName, onLogout, children }: NavBa
           </svg>
           Home
         </Link>
-        <svg className="w-3 h-3 text-gray-300 dark:text-gray-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={`w-3 h-3 shrink-0 ${styles.chevron}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
-        <Link
-          to={appHref}
-          className="font-medium text-gray-900 dark:text-white hover:text-gray-700 dark:hover:text-gray-200 transition-colors truncate"
-        >
+        <Link to={appHref} className={styles.appLink}>
           {appName}
         </Link>
       </nav>

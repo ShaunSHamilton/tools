@@ -51,6 +51,7 @@ function App() {
       <NavBar
         appName="Team Board"
         appHref="/team-board"
+        color="violet"
         userName={effectiveName(user)}
         onLogout={handleLogout}
       >

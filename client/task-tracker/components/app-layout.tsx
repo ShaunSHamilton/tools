@@ -24,6 +24,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
       <NavBar
         appName="Task Tracker"
         appHref="/task-tracker"
+        color="sky"
         userName={user ? effectiveName(user) : undefined}
         onLogout={handleLogout}
       />

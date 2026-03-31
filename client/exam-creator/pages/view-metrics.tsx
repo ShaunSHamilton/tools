@@ -35,6 +35,7 @@ export function View() {
     <div className="min-h-screen flex flex-col">
       <NavBar
         appName="Exam Creator"
+        color="teal"
         appHref="/exam-creator"
         userName={user?.name}
         onLogout={logout}

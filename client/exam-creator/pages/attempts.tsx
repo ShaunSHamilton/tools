@@ -50,6 +50,7 @@ export function Attempts() {
     <div className="min-h-screen flex flex-col">
       <NavBar
         appName="Exam Creator"
+        color="teal"
         appHref="/exam-creator"
         onLogout={logout}
       />

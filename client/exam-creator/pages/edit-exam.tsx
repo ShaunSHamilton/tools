@@ -41,6 +41,7 @@ export function Edit() {
     <div className="min-h-screen bg-background flex flex-col">
       <NavBar
         appName="Exam Creator"
+        color="teal"
         appHref="/exam-creator"
         userName={user?.name}
         onLogout={logout}
