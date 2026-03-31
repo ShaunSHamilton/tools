@@ -20,7 +20,7 @@ use crate::task_tracker::shared::{
 };
 use crate::team_board::models::user::User;
 
-use crate::task_tracker::api::{email, error::ApiError, middleware::auth::AuthUser, router::AppState};
+use crate::task_tracker::api::{error::ApiError, middleware::auth::AuthUser, router::AppState};
 
 // ─── Slug helpers ─────────────────────────────────────────────────────────────
 
@@ -226,7 +226,6 @@ pub async fn invite(
 
     let orgs = state.db.collection::<Organisation>("organisations");
     let memberships = state.db.collection::<OrgMembership>("org_memberships");
-    let users_coll = state.tb_db.collection::<User>("users");
 
     // Verify caller is an admin of this org
     let org = orgs
@@ -243,11 +242,6 @@ pub async fn invite(
         .await?
         .ok_or(AppError::Forbidden)?;
     let _ = admin_membership; // used for verification
-
-    let inviter = users_coll
-        .find_one(doc! { "_id": auth.user_id })
-        .await?
-        .ok_or(AppError::Internal(anyhow::anyhow!("inviter user not found")))?;
 
     // Generate a 32-char URL-safe token
     let token = Uuid::new_v4().simple().to_string();
@@ -267,23 +261,6 @@ pub async fn invite(
 
     let invites = state.db.collection::<OrgInvite>("org_invites");
     invites.insert_one(&invite_doc).await?;
-
-    let invite_url = format!(
-        "{}/orgs/invites/{}",
-        state.config.frontend_base_url, token
-    );
-
-    email::send_invite_email(
-        &state.http,
-        state.config.postmark_api_key.as_deref(),
-        state.config.from_email.as_deref(),
-        &email_addr,
-        &org.name,
-        &invite_url,
-        &inviter.name,
-    )
-    .await
-    .map_err(|e| anyhow::anyhow!("{e}"))?;
 
     Ok(StatusCode::NO_CONTENT)
 }

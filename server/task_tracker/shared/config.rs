@@ -20,10 +20,6 @@ pub struct Config {
     // LLM
     pub anthropic_api_key: String,
 
-    // Email (Postmark)
-    pub postmark_api_key: Option<String>,
-    pub from_email: Option<String>,
-
     // Services
     pub gotenberg_url: String,
 
@@ -52,9 +48,6 @@ impl Config {
             do_spaces_endpoint: required("DO_SPACES_ENDPOINT")?,
 
             anthropic_api_key: required("ANTHROPIC_API_KEY")?,
-
-            postmark_api_key: std::env::var("POSTMARK_API_KEY").ok(),
-            from_email: std::env::var("FROM_EMAIL").ok(),
 
             gotenberg_url: std::env::var("GOTENBERG_URL")
                 .unwrap_or_else(|_| "http://localhost:3000".into()),
