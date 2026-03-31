@@ -59,7 +59,7 @@ function MemberColumn({
   const { setNodeRef, isOver } = useDroppable({ id: member.user.id })
 
   return (
-    <div className="flex flex-col flex-shrink-0 w-56">
+    <div className={`flex flex-col flex-shrink-0 w-56 rounded-2xl transition-colors ${isCurrentUser ? 'border border-slate-300 dark:border-slate-600 bg-slate-50/60 dark:bg-slate-900/30 p-2' : ''}`}>
       <div className="flex items-center justify-between mb-3">
         <button
           onClick={onClickHeader}
