@@ -141,8 +141,22 @@ pub async fn list(
         .await?;
 
     let results: Vec<ReportSummary> = cursor.try_collect().await?;
+    let reports_json: Vec<serde_json::Value> = results
+        .into_iter()
+        .map(|r| {
+            json!({
+                "id": r.id.to_hex(),
+                "title": r.title,
+                "period_start": r.period_start,
+                "period_end": r.period_end,
+                "status": r.status,
+                "generated_at": r.generated_at,
+                "created_at": r.created_at,
+            })
+        })
+        .collect();
 
-    Ok(Json(json!({ "reports": results })))
+    Ok(Json(json!({ "reports": reports_json })))
 }
 
 pub async fn get(
@@ -159,7 +173,18 @@ pub async fn get(
         .await?
         .ok_or(AppError::NotFound)?;
 
-    Ok(Json(report))
+    Ok(Json(json!({
+        "id": report.id.to_hex(),
+        "title": report.title,
+        "period_start": report.period_start,
+        "period_end": report.period_end,
+        "status": report.status,
+        "content_md": report.content_md,
+        "error_message": report.error_message,
+        "custom_instructions": report.custom_instructions,
+        "generated_at": report.generated_at,
+        "created_at": report.created_at,
+    })))
 }
 
 pub async fn rename(

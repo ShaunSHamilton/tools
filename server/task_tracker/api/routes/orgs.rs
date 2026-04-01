@@ -380,7 +380,7 @@ pub async fn list_reports(
                 .map(|u| u.name.clone())
                 .unwrap_or_else(|| "Unknown".to_string());
             OrgReportSummary {
-                id: r.id,
+                id: r.id.to_hex(),
                 title: r.title.clone(),
                 period_start: r.period_start,
                 period_end: r.period_end,

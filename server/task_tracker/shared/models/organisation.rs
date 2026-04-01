@@ -52,7 +52,7 @@ pub struct OrgMemberView {
 /// Report summary enriched with author name, used in org report listings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OrgReportSummary {
-    pub id: ObjectId,
+    pub id: String,
     pub title: String,
     pub period_start: NaiveDate,
     pub period_end: NaiveDate,
