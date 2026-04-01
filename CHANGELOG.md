@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-04-01
+
+### Fixed
+
+- fix(server): use ObjectId for reports and github_connections _id
+
 ## [0.8.0] - 2026-03-31
 
 ### Added
