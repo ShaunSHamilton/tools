@@ -23,11 +23,11 @@ import { EditExamGenerationVariability } from "../components/edit-exam-generatio
 import { EditExamConfig } from "../components/edit-exam-config";
 import { ConfigView } from "../components/config-view";
 import { UsersOnPageAvatars } from "../components/users-on-page-avatars";
-import { NavBar } from "@/components/nav-bar";
+import { ExamLayout } from "../components/ExamLayout";
 
 export function Edit() {
   const { id } = useParams({ from: "/exam-creator/exams/$id" });
-  const { user, logout } = useContext(AuthContext)!;
+  const { user } = useContext(AuthContext)!;
 
   const examQuery = useQuery({
     queryKey: ["exam", id],
@@ -38,14 +38,7 @@ export function Edit() {
   });
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <NavBar
-        appName="Exam Creator"
-        color="teal"
-        appHref="/exam-creator"
-        userName={user?.name}
-        onLogout={logout}
-      />
+    <ExamLayout>
       {/* Floating widget: top right */}
       <UsersEditing />
       <div className="py-8 px-2 flex-1">
@@ -61,7 +54,7 @@ export function Edit() {
         )}
       </div>
       </div>
-    </div>
+    </ExamLayout>
   );
 }
 

@@ -5,13 +5,11 @@ import { ExamEnvironmentExamModerationStatus } from "@prisma/client";
 
 import { ModerationCard } from "../components/moderation-card";
 import { UsersWebSocketActivityContext } from "../contexts/users-websocket";
-import { AuthContext } from "../contexts/auth";
 import { moderationsInfiniteQuery } from "../hooks/queries";
 import { Header } from "../components/ui/header";
-import { NavBar } from "@/components/nav-bar";
+import { ExamLayout } from "../components/ExamLayout";
 
 export function Attempts() {
-  const { logout } = useContext(AuthContext)!;
   const { updateActivity } = useContext(UsersWebSocketActivityContext)!;
   const search = useSearch({ from: "/exam-creator/attempts" });
 
@@ -47,13 +45,7 @@ export function Attempts() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <NavBar
-        appName="Exam Creator"
-        color="teal"
-        appHref="/exam-creator"
-        onLogout={logout}
-      />
+    <ExamLayout>
       <div className="py-12 px-4 flex-1">
       <div className="flex items-center justify-center">
         <div className="flex flex-col gap-8 w-full max-w-7xl">
@@ -171,6 +163,6 @@ export function Attempts() {
         </div>
       </div>
       </div>
-    </div>
+    </ExamLayout>
   );
 }

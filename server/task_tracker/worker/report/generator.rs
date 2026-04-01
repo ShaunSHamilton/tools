@@ -21,5 +21,6 @@ pub struct ReportContext {
 }
 
 pub trait ReportGenerator: Send + Sync {
+    #[allow(async_fn_in_trait)]
     async fn generate(&self, ctx: &ReportContext) -> anyhow::Result<String>;
 }

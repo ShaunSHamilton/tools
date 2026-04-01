@@ -42,11 +42,11 @@ import {
 } from "recharts/types/component/DefaultTooltipContent";
 import { UsersOnPageAvatars } from "../components/users-on-page-avatars";
 import { Loader2 } from "lucide-react";
-import { NavBar } from "@/components/nav-bar";
+import { ExamLayout } from "../components/ExamLayout";
 
 export function Edit() {
   const { id } = useParams({ from: "/exam-creator/attempts/$id" });
-  const { user, logout } = useContext(AuthContext)!;
+  const { user } = useContext(AuthContext)!;
 
   const attemptQuery = useQuery({
     queryKey: ["attempt", id],
@@ -66,14 +66,7 @@ export function Edit() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <NavBar
-        appName="Exam Creator"
-        color="teal"
-        appHref="/exam-creator"
-        userName={user?.name}
-        onLogout={logout}
-      />
+    <ExamLayout>
       {/* Floating widget: top right */}
       <UsersEditing />
       <div className="py-14 px-2 flex-1">
@@ -90,7 +83,7 @@ export function Edit() {
         )}
       </div>
       </div>
-    </div>
+    </ExamLayout>
   );
 }
 

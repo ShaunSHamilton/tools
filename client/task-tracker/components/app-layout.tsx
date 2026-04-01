@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCurrentUser, effectiveName } from "@/team-board/hooks/useCurrentUser";
 import { NavBar } from "@/components/nav-bar";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 export function AppLayout({ children }: { children: ReactNode }) {
   const { data: user } = useCurrentUser();
@@ -27,7 +28,9 @@ export function AppLayout({ children }: { children: ReactNode }) {
         color="sky"
         userName={user ? effectiveName(user) : undefined}
         onLogout={handleLogout}
-      />
+      >
+        <NotificationBell />
+      </NavBar>
       <div className="flex flex-1 overflow-hidden">
         <aside className="w-56 flex-shrink-0 border-r border-border flex flex-col">
           <nav className="flex-1 p-2 space-y-0.5 pt-4">

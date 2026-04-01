@@ -17,11 +17,11 @@ import { parseMarkdown, secondsToHumanReadable } from "../utils/question";
 import { TimeTakenDistribution } from "../components/time-taken-distribution";
 import { Tooltip } from "../components/tooltip";
 import { TitleStat } from "../components/ui/title-stat";
-import { NavBar } from "@/components/nav-bar";
+import { ExamLayout } from "../components/ExamLayout";
 
 export function View() {
   const { id } = useParams({ from: "/exam-creator/metrics/exams/$id" });
-  const { user, logout } = useContext(AuthContext)!;
+  const { user } = useContext(AuthContext)!;
 
   const examMetricsQuery = useQuery({
     queryKey: ["metrics", id],
@@ -32,14 +32,7 @@ export function View() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <NavBar
-        appName="Exam Creator"
-        color="teal"
-        appHref="/exam-creator"
-        userName={user?.name}
-        onLogout={logout}
-      />
+    <ExamLayout>
       <div className="py-8 px-2 flex-1">
       <div className="flex items-center justify-center">
         {examMetricsQuery.isFetching || examMetricsQuery.isPending ? (
@@ -57,7 +50,7 @@ export function View() {
         )}
       </div>
       </div>
-    </div>
+    </ExamLayout>
   );
 }
 
