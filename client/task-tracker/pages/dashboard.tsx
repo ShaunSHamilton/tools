@@ -3,7 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { Button } from "@/task-tracker/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/task-tracker/components/ui/card";
 import { useCurrentUser } from "@/team-board/hooks/useCurrentUser";
-import { github, orgs, ApiError } from "@/task-tracker/lib/api";
+import { github, ApiError } from "@/task-tracker/lib/api";
+import { useOrgs } from "@/hooks/useOrgs";
 
 export function DashboardPage() {
   const { data: user } = useCurrentUser();
@@ -13,10 +14,7 @@ export function DashboardPage() {
     queryFn: () => github.status(),
   });
 
-  const { data: orgsData } = useQuery({
-    queryKey: ["orgs"],
-    queryFn: () => orgs.list(),
-  });
+  const { data: orgsData = [] } = useOrgs();
 
   const connectMutation = useMutation({
     mutationFn: () => github.connectStart(),
@@ -86,23 +84,26 @@ export function DashboardPage() {
                     Share reports with your team.
                   </CardDescription>
                 </div>
-                <Link to="/task-tracker/orgs/new">
-                  <Button variant="outline" size="sm">New org</Button>
+                <Link to="/settings">
+                  <Button variant="outline" size="sm">Manage</Button>
                 </Link>
               </div>
             </CardHeader>
             <CardContent>
-              {!orgsData?.orgs.length ? (
+              {!orgsData.length ? (
                 <p className="text-muted-foreground text-sm">
-                  No organisations yet.
+                  No organisations yet.{" "}
+                  <Link to="/settings" className="underline">
+                    Create one in Settings.
+                  </Link>
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {orgsData.orgs.map((org) => (
+                  {orgsData.map((org) => (
                     <Link
                       key={org.id}
-                      to="/task-tracker/orgs/$slug"
-                      params={{ slug: org.slug }}
+                      to="/task-tracker/orgs/$id"
+                      params={{ id: org.id }}
                       className="flex items-center justify-between rounded-md border border-border p-3 text-sm hover:bg-card/80 transition-colors"
                     >
                       <span className="font-medium">{org.name}</span>

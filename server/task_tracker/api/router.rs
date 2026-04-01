@@ -84,12 +84,8 @@ pub fn build(
             get(reports::get_orgs).put(reports::update_orgs),
         )
         .route("/reports/{id}/share", post(reports::share))
-        // Organisations
-        .route("/orgs", post(orgs::create).get(orgs::list))
-        .route("/orgs/{slug}", get(orgs::detail))
-        .route("/orgs/{slug}/invites", post(orgs::invite))
-        .route("/orgs/{slug}/reports", get(orgs::list_reports))
-        .route("/orgs/invites/{token}/accept", post(orgs::accept_invite))
+        // Org reports (org management lives in the shared /api/orgs routes)
+        .route("/orgs/{org_id}/reports", get(orgs::list_reports))
         // Public share (no auth)
         .route("/share/{token}", get(share::public_report))
         .with_state(state);

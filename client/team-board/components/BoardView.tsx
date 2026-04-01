@@ -27,7 +27,7 @@ import { CursorOverlay } from './CursorOverlay'
 import { BoardSkeleton } from './Skeleton'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { useThrottle } from '../hooks/useThrottle'
-import type { OrgMember } from '../hooks/useOrgs'
+import type { OrgMember } from '@/hooks/useOrgs'
 
 interface Props {
   orgId: string

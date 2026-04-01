@@ -35,9 +35,7 @@ import { ttProtectedRoute } from "./routes/task-tracker/_protected";
 import { ttDashboardRoute } from "./routes/task-tracker/_protected.dashboard";
 import { ttReportsRoute } from "./routes/task-tracker/_protected.reports";
 import { ttReportViewRoute } from "./routes/task-tracker/_protected.reports_.$id";
-import { ttOrgNewRoute } from "./routes/task-tracker/_protected.orgs.new";
 import { ttOrgDetailRoute } from "./routes/task-tracker/_protected.orgs.$slug";
-import { ttOrgInviteAcceptRoute } from "./routes/task-tracker/_protected.orgs.invites.$token";
 import { ttShareRoute } from "./routes/task-tracker/share.$token";
 
 export const queryClient = new QueryClient({
@@ -76,9 +74,7 @@ const routeTree = rootRoute.addChildren([
       ttDashboardRoute,
       ttReportsRoute,
       ttReportViewRoute,
-      ttOrgNewRoute,
       ttOrgDetailRoute,
-      ttOrgInviteAcceptRoute,
     ]),
   ]),
 ]);

@@ -12,11 +12,9 @@ use uuid::Uuid;
 
 use crate::task_tracker::shared::{
     error::AppError,
-    models::{
-        organisation::OrgMembership,
-        report::{Report, ReportSummary},
-    },
+    models::report::{Report, ReportSummary},
 };
+use crate::team_board::models::org::OrgMember;
 
 use crate::task_tracker::api::{error::ApiError, middleware::auth::AuthUser, router::AppState};
 
@@ -28,13 +26,13 @@ pub struct CreateReportRequest {
     pub period_end: NaiveDate,
     /// Replaces the default structured-sections prompt when provided.
     pub custom_instructions: Option<String>,
-    /// Org IDs whose members should be able to see this report.
-    pub org_ids: Option<Vec<Uuid>>,
+    /// Org IDs (team board ObjectIds) whose members should be able to see this report.
+    pub org_ids: Option<Vec<ObjectId>>,
 }
 
 #[derive(Deserialize)]
 pub struct UpdateOrgsRequest {
-    pub org_ids: Vec<Uuid>,
+    pub org_ids: Vec<ObjectId>,
 }
 
 #[derive(Deserialize)]
@@ -64,11 +62,11 @@ pub async fn create(
     // If org_ids supplied, verify the user is actually a member of each org
     if let Some(ref ids) = req.org_ids {
         if !ids.is_empty() {
-            let memberships = state.db.collection::<OrgMembership>("org_memberships");
-            let member_count = memberships
+            let org_members = state.tb_db.collection::<OrgMember>("org_members");
+            let member_count = org_members
                 .count_documents(doc! {
                     "user_id": auth.user_id,
-                    "org_id": { "$in": bson::serialize_to_bson(ids).unwrap() }
+                    "org_id": { "$in": ids }
                 })
                 .await?;
 
@@ -278,11 +276,11 @@ pub async fn update_orgs(
 
     // Verify user is a member of all provided orgs
     if !req.org_ids.is_empty() {
-        let memberships = state.db.collection::<OrgMembership>("org_memberships");
-        let member_count = memberships
+        let org_members = state.tb_db.collection::<OrgMember>("org_members");
+        let member_count = org_members
             .count_documents(doc! {
                 "user_id": auth.user_id,
-                "org_id": { "$in": bson::serialize_to_bson(&req.org_ids).unwrap() }
+                "org_id": { "$in": &req.org_ids }
             })
             .await?;
 
@@ -295,7 +293,7 @@ pub async fn update_orgs(
     reports
         .update_one(
             doc! { "_id": report_id },
-            doc! { "$set": { "org_ids": bson::serialize_to_bson(&req.org_ids).unwrap() } },
+            doc! { "$set": { "org_ids": &req.org_ids } },
         )
         .await?;
 

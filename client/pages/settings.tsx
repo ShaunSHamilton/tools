@@ -3,6 +3,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { NavBar } from "@/components/nav-bar";
+import {
+  useOrgs,
+  useCreateOrg,
+  useOrgDetail,
+  useInviteMember,
+  useRemoveMember,
+  useChangeRole,
+  useOrgInvitations,
+  useCancelInvitation,
+} from "@/hooks/useOrgs";
 
 // ─── Auth/User (universal endpoint) ──────────────────────────────────────────
 
@@ -90,7 +100,7 @@ function applyTheme(t: Theme) {
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-type Tab = "general" | "team-board" | "exam-creator";
+type Tab = "general" | "team-board" | "exam-creator" | "organisations";
 
 // ─── Settings Page ────────────────────────────────────────────────────────────
 
@@ -186,6 +196,7 @@ export function SettingsPage() {
     { id: "general", label: "General" },
     { id: "team-board", label: "Team Board" },
     { id: "exam-creator", label: "Exam Creator" },
+    { id: "organisations", label: "Organisations" },
   ];
 
   const currentDbEnv: DbEnv =
@@ -355,6 +366,11 @@ export function SettingsPage() {
                 </form>
               )}
 
+              {/* ── Organisations ── */}
+              {tab === "organisations" && (
+                <OrgsTab currentUserId={user.id} />
+              )}
+
               {/* ── Exam Creator ── */}
               {tab === "exam-creator" && (
                 <div className="space-y-5">
@@ -416,6 +432,261 @@ export function SettingsPage() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+// ─── Organisations tab ────────────────────────────────────────────────────────
+
+function OrgsTab({ currentUserId }: { currentUserId: string }) {
+  const { data: orgs = [], isLoading } = useOrgs();
+  const createOrg = useCreateOrg();
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const selectedOrg = orgs.find((o) => o.id === selectedOrgId) ?? orgs[0] ?? null;
+  const activeOrgId = selectedOrg?.id ?? null;
+
+  if (selectedOrgId === null && orgs.length > 0 && !selectedOrgId) {
+    // Auto-select first org once loaded — handled reactively below
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setCreateError(null);
+    try {
+      const org = await createOrg.mutateAsync(newName.trim());
+      setNewName("");
+      setCreating(false);
+      setSelectedOrgId(org.id);
+    } catch (err) {
+      setCreateError((err as Error).message);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <div className="h-10 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse" />
+        <div className="h-48 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse" />
+      </div>
+    );
+  }
+
+  const displayOrgId = activeOrgId ?? (orgs[0]?.id ?? null);
+
+  return (
+    <div className="space-y-5">
+      {/* Org selector */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {orgs.map((org) => (
+          <button
+            key={org.id}
+            onClick={() => setSelectedOrgId(org.id)}
+            className={`text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+              (selectedOrgId ?? orgs[0]?.id) === org.id
+                ? "border-gray-900 dark:border-white bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium"
+                : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500"
+            }`}
+          >
+            {org.name}
+          </button>
+        ))}
+        {creating ? (
+          <form onSubmit={handleCreate} className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Organisation name"
+              required
+              autoFocus
+              className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-gray-400 dark:focus:border-gray-500"
+            />
+            <button
+              type="submit"
+              disabled={createOrg.isPending}
+              className="text-sm px-3 py-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-100 disabled:opacity-50"
+            >
+              Create
+            </button>
+            <button
+              type="button"
+              onClick={() => { setCreating(false); setCreateError(null); }}
+              className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            >
+              Cancel
+            </button>
+            {createError && <p className="text-xs text-red-500">{createError}</p>}
+          </form>
+        ) : (
+          <button
+            onClick={() => setCreating(true)}
+            className="text-sm text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            + New
+          </button>
+        )}
+      </div>
+
+      {orgs.length === 0 && !creating && (
+        <p className="text-sm text-gray-400 dark:text-gray-500">
+          No organisations yet. Create one to get started.
+        </p>
+      )}
+
+      {/* Org detail panel */}
+      {displayOrgId && (
+        <OrgSettingsPanel orgId={displayOrgId} currentUserId={currentUserId} />
+      )}
+    </div>
+  );
+}
+
+function OrgSettingsPanel({
+  orgId,
+  currentUserId,
+}: {
+  orgId: string;
+  currentUserId: string;
+}) {
+  const { data, isLoading } = useOrgDetail(orgId);
+  const { data: invitations = [] } = useOrgInvitations(orgId);
+  const invite = useInviteMember(orgId);
+  const remove = useRemoveMember(orgId);
+  const changeRole = useChangeRole(orgId);
+  const cancelInvitation = useCancelInvitation(orgId);
+
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSent, setInviteSent] = useState(false);
+
+  if (isLoading || !data) {
+    return <div className="h-40 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse" />;
+  }
+
+  const { members } = data;
+  const me = members.find((m) => m.user.id === currentUserId);
+  const isAdmin = me?.role === "admin";
+
+  async function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
+    setInviteError(null);
+    setInviteSent(false);
+    try {
+      await invite.mutateAsync(inviteEmail.trim());
+      setInviteEmail("");
+      setInviteSent(true);
+    } catch (err) {
+      setInviteError((err as Error).message);
+    }
+  }
+
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 space-y-6">
+      {/* Members */}
+      <div>
+        <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+          Members
+        </h3>
+        <ul className="space-y-2">
+          {members.map((m) => (
+            <li key={m.user.id} className="flex items-center justify-between text-sm">
+              <div>
+                <span className="text-gray-900 dark:text-white font-medium">
+                  {m.user.display_name?.trim() || m.user.name}
+                </span>
+                <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">
+                  {m.user.email}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 dark:text-gray-500 capitalize">
+                  {m.role}
+                </span>
+                {isAdmin && m.user.id !== currentUserId && (
+                  <>
+                    <button
+                      onClick={() =>
+                        changeRole.mutate({
+                          userId: m.user.id,
+                          role: m.role === "admin" ? "member" : "admin",
+                        })
+                      }
+                      className="text-xs text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
+                    >
+                      {m.role === "admin" ? "Demote" : "Promote"}
+                    </button>
+                    <button
+                      onClick={() => remove.mutate(m.user.id)}
+                      className="text-xs text-red-600 hover:text-red-500 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Pending invitations (admin) */}
+      {isAdmin && invitations.length > 0 && (
+        <div>
+          <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            Pending invitations
+          </h3>
+          <ul className="space-y-1.5">
+            {invitations.map((inv) => (
+              <li key={inv.id} className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 dark:text-gray-300">{inv.invited_email}</span>
+                <button
+                  onClick={() => cancelInvitation.mutate(inv.id)}
+                  className="text-xs text-red-600 hover:text-red-500 transition-colors"
+                >
+                  Cancel
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Invite form (admin) */}
+      {isAdmin && (
+        <div>
+          <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            Invite by email
+          </h3>
+          <form onSubmit={handleInvite} className="flex gap-2">
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => {
+                setInviteEmail(e.target.value);
+                setInviteSent(false);
+              }}
+              placeholder="colleague@example.com"
+              required
+              className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gray-400 dark:focus:border-gray-500"
+            />
+            <button
+              type="submit"
+              disabled={invite.isPending}
+              className="text-sm px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-100 disabled:opacity-50 transition-colors"
+            >
+              {invite.isPending ? "Sending…" : "Invite"}
+            </button>
+          </form>
+          {inviteError && <p className="text-xs text-red-500 mt-1.5">{inviteError}</p>}
+          {inviteSent && (
+            <p className="text-xs text-green-600 dark:text-green-400 mt-1.5">Invitation sent.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

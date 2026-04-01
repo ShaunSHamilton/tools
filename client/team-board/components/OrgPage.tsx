@@ -7,7 +7,7 @@ import {
   useOrgDetail,
   useOrgInvitations,
   useRemoveMember,
-} from '../hooks/useOrgs'
+} from '@/hooks/useOrgs'
 import type { CurrentUser } from '../hooks/useCurrentUser'
 import { Skeleton } from './Skeleton'
 

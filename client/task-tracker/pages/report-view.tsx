@@ -5,7 +5,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Button } from "@/task-tracker/components/ui/button";
 import { Card, CardContent } from "@/task-tracker/components/ui/card";
-import { reports, orgs } from "@/task-tracker/lib/api";
+import { reports } from "@/task-tracker/lib/api";
+import { useOrgs } from "@/hooks/useOrgs";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -71,10 +72,7 @@ export function ReportViewPage() {
     }
   }
 
-  const { data: orgsData } = useQuery({
-    queryKey: ["orgs"],
-    queryFn: () => orgs.list(),
-  });
+  const { data: orgsData = [] } = useOrgs();
 
   const { data: reportOrgsData } = useQuery({
     queryKey: ["reports", id, "orgs"],
@@ -231,14 +229,14 @@ export function ReportViewPage() {
           )}
         </div>
 
-        {report && orgsData && orgsData.orgs.length > 0 && (
+        {report && orgsData.length > 0 && (
           <Card>
             <CardContent className="pt-4 pb-4">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-2">
                   <p className="text-sm font-medium">Share with organisations</p>
                   <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {orgsData.orgs.map((org) => (
+                    {orgsData.map((org) => (
                       <label
                         key={org.id}
                         className="flex items-center gap-2 text-sm cursor-pointer"

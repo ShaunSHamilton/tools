@@ -4,7 +4,7 @@ import {
   useInviteMember,
   useOrgDetail,
   useRemoveMember,
-} from '../hooks/useOrgs'
+} from '@/hooks/useOrgs'
 import type { CurrentUser } from '../hooks/useCurrentUser'
 
 interface Props {

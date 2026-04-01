@@ -1,5 +1,6 @@
 use axum::{
-    Json, Router, middleware, routing::delete, routing::get, routing::patch, routing::post,
+    Json, Router, middleware,
+    routing::{delete, get, patch, post},
 };
 use axum_extra::extract::cookie::Key;
 use serde::Serialize;
@@ -72,20 +73,7 @@ pub fn create_shared_api_router(state: AppState) -> Router {
         .route("/auth/me", get(crate::auth::me))
         .route("/auth/me", patch(crate::auth::update_me))
         .route("/auth/logout", post(crate::auth::logout))
-        .layer(middleware::from_fn_with_state(
-            state.clone(),
-            crate::team_board::middleware::auth::require_auth,
-        ));
-
-    public_api.merge(protected_api).with_state(state)
-}
-
-pub fn create_app(state: AppState) -> Router {
-    let cors = build_cors(&state.config);
-
-    // Protected routes — require_auth middleware injects UserId + SessionCookie
-    let protected_api = Router::new()
-        // Organisations
+        // Organisations (unified — shared across all apps)
         .route("/orgs", post(crate::team_board::routes::orgs::create_org))
         .route("/orgs", get(crate::team_board::routes::orgs::list_orgs))
         .route("/orgs/{org_id}", get(crate::team_board::routes::orgs::get_org))
@@ -101,7 +89,6 @@ pub fn create_app(state: AppState) -> Router {
             "/orgs/{org_id}/members/{user_id}/role",
             patch(crate::team_board::routes::orgs::change_role),
         )
-        // Invitations
         .route(
             "/orgs/{org_id}/invitations",
             get(crate::team_board::routes::orgs::list_invitations),
@@ -118,7 +105,7 @@ pub fn create_app(state: AppState) -> Router {
             "/invitations/{invite_id}/decline",
             post(crate::team_board::routes::orgs::decline_invite),
         )
-        // Notifications
+        // Notifications (unified — shared across all apps)
         .route(
             "/notifications",
             get(crate::team_board::routes::orgs::list_notifications),
@@ -127,6 +114,19 @@ pub fn create_app(state: AppState) -> Router {
             "/notifications/{notif_id}/read",
             patch(crate::team_board::routes::orgs::mark_notification_read),
         )
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            crate::team_board::middleware::auth::require_auth,
+        ));
+
+    public_api.merge(protected_api).with_state(state)
+}
+
+pub fn create_app(state: AppState) -> Router {
+    let cors = build_cors(&state.config);
+
+    // Protected routes — require_auth middleware injects UserId + SessionCookie
+    let protected_api = Router::new()
         // Tasks
         .route(
             "/orgs/{org_id}/tasks",

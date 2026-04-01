@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useCreateOrg, useOrgs, type Org } from '../hooks/useOrgs'
+import { useCreateOrg, useOrgs, type Org } from '@/hooks/useOrgs'
 
 interface Props {
   selectedOrgId: string | null

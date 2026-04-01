@@ -118,28 +118,6 @@ export const reports = {
 
 // ─── Orgs ─────────────────────────────────────────────────────────────────────
 
-export interface Org {
-  id: string;
-  name: string;
-  slug: string;
-  created_at: string;
-}
-
-export interface OrgMember {
-  user_id: string;
-  email: string;
-  name: string;
-  picture: string | null;
-  role: "admin" | "member";
-  joined_at: string;
-}
-
-export interface OrgDetail {
-  org: Org;
-  members: OrgMember[];
-  caller_role: "admin" | "member";
-}
-
 export interface OrgReportSummary {
   id: string;
   title: string;
@@ -152,24 +130,8 @@ export interface OrgReportSummary {
 }
 
 export const orgs = {
-  create: (body: { name: string }) =>
-    request<Org>("/orgs", { method: "POST", body: JSON.stringify(body) }),
-
-  list: () => request<{ orgs: Org[] }>("/orgs"),
-
-  get: (slug: string) => request<OrgDetail>(`/orgs/${slug}`),
-
-  invite: (slug: string, email: string) =>
-    request<void>(`/orgs/${slug}/invites`, {
-      method: "POST",
-      body: JSON.stringify({ email }),
-    }),
-
-  acceptInvite: (inviteToken: string) =>
-    request<Org>(`/orgs/invites/${inviteToken}/accept`, { method: "POST" }),
-
-  listReports: (slug: string) =>
-    request<{ reports: OrgReportSummary[] }>(`/orgs/${slug}/reports`),
+  listReports: (orgId: string) =>
+    request<{ reports: OrgReportSummary[] }>(`/orgs/${orgId}/reports`),
 };
 
 export const shareApi = {

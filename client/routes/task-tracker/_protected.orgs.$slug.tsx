@@ -4,6 +4,6 @@ import { OrgDetailPage } from "@/task-tracker/pages/org-detail";
 
 export const ttOrgDetailRoute = createRoute({
   getParentRoute: () => ttProtectedRoute,
-  path: "/orgs/$slug",
+  path: "/orgs/$id",
   component: OrgDetailPage,
 });

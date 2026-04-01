@@ -13,7 +13,8 @@ import {
   DialogTrigger,
 } from "@/task-tracker/components/ui/dialog";
 import { Textarea } from "@/task-tracker/components/ui/textarea";
-import { reports, orgs, ApiError, type ReportSummary } from "@/task-tracker/lib/api";
+import { reports, ApiError, type ReportSummary } from "@/task-tracker/lib/api";
+import { useOrgs } from "@/hooks/useOrgs";
 
 function DeleteReportButton({ id }: { id: string }) {
   const queryClient = useQueryClient();
@@ -83,11 +84,7 @@ function CreateReportDialog() {
   const [selectedOrgIds, setSelectedOrgIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: orgsData } = useQuery({
-    queryKey: ["orgs"],
-    queryFn: () => orgs.list(),
-    enabled: open,
-  });
+  const { data: orgsData = [] } = useOrgs();
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -147,14 +144,14 @@ function CreateReportDialog() {
             </div>
           </div>
 
-          {orgsData && orgsData.orgs.length > 0 && (
+          {orgsData.length > 0 && (
             <div className="space-y-2">
               <Label>
                 Share with organisations{" "}
                 <span className="text-muted-foreground font-normal">(optional)</span>
               </Label>
               <div className="space-y-1">
-                {orgsData.orgs.map((org) => (
+                {orgsData.map((org) => (
                   <label
                     key={org.id}
                     className="flex items-center gap-2 text-sm cursor-pointer"

@@ -1,4 +1,4 @@
-const API_PREFIX = import.meta.env.VITE_API_PREFIX ?? "/team-board";
+const API_PREFIX = "";
 
 export async function apiFetch<T>(
   path: string,
