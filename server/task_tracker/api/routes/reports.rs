@@ -5,7 +5,7 @@ use axum::{
     Json,
 };
 use chrono::{NaiveDate, Utc};
-use mongodb::bson::doc;
+use mongodb::bson::{doc, oid::ObjectId};
 use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
@@ -85,7 +85,7 @@ pub async fn create(
     let org_ids = req.org_ids.clone().unwrap_or_default();
 
     let report = Report {
-        id: Uuid::new_v4(),
+        id: ObjectId::new(),
         user_id: auth.user_id,
         org_id: None,
         title,
@@ -126,7 +126,7 @@ pub async fn list(
 
     let reports = state.db.collection::<ReportSummary>("reports");
     let cursor = reports
-        .find(doc! { "user_id": bson::serialize_to_bson(&auth.user_id).unwrap() })
+        .find(doc! { "user_id": auth.user_id })
         .sort(doc! { "created_at": -1 })
         .limit(50)
         .projection(doc! {
@@ -148,12 +148,12 @@ pub async fn list(
 pub async fn get(
     State(state): State<AppState>,
     auth: AuthUser,
-    Path(report_id): Path<Uuid>,
+    Path(report_id): Path<ObjectId>,
 ) -> Result<impl IntoResponse, ApiError> {
     let reports = state.db.collection::<Report>("reports");
     let report = reports
         .find_one(doc! {
-            "_id": bson::serialize_to_bson(&report_id).unwrap(),
+            "_id": report_id,
             "user_id": auth.user_id,
         })
         .await?
@@ -165,7 +165,7 @@ pub async fn get(
 pub async fn rename(
     State(state): State<AppState>,
     auth: AuthUser,
-    Path(report_id): Path<Uuid>,
+    Path(report_id): Path<ObjectId>,
     Json(req): Json<RenameReportRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let title = req.title.trim().to_string();
@@ -180,7 +180,7 @@ pub async fn rename(
     let result = reports
         .update_one(
             doc! {
-                "_id": bson::serialize_to_bson(&report_id).unwrap(),
+                "_id": report_id,
                 "user_id": auth.user_id,
             },
             doc! { "$set": { "title": &title } },
@@ -197,12 +197,12 @@ pub async fn rename(
 pub async fn delete(
     State(state): State<AppState>,
     auth: AuthUser,
-    Path(report_id): Path<Uuid>,
+    Path(report_id): Path<ObjectId>,
 ) -> Result<impl IntoResponse, ApiError> {
     let reports = state.db.collection::<Report>("reports");
     let result = reports
         .delete_one(doc! {
-            "_id": bson::serialize_to_bson(&report_id).unwrap(),
+            "_id": report_id,
             "user_id": auth.user_id,
         })
         .await?;
@@ -217,12 +217,12 @@ pub async fn delete(
 pub async fn get_orgs(
     State(state): State<AppState>,
     auth: AuthUser,
-    Path(report_id): Path<Uuid>,
+    Path(report_id): Path<ObjectId>,
 ) -> Result<impl IntoResponse, ApiError> {
     let reports = state.db.collection::<Report>("reports");
     let report = reports
         .find_one(doc! {
-            "_id": bson::serialize_to_bson(&report_id).unwrap(),
+            "_id": report_id,
             "user_id": auth.user_id,
         })
         .await?
@@ -234,7 +234,7 @@ pub async fn get_orgs(
 pub async fn update_orgs(
     State(state): State<AppState>,
     auth: AuthUser,
-    Path(report_id): Path<Uuid>,
+    Path(report_id): Path<ObjectId>,
     Json(req): Json<UpdateOrgsRequest>,
 ) -> Result<impl IntoResponse, ApiError> {
     let reports = state.db.collection::<Report>("reports");
@@ -242,7 +242,7 @@ pub async fn update_orgs(
     // Verify ownership
     let exists = reports
         .find_one(doc! {
-            "_id": bson::serialize_to_bson(&report_id).unwrap(),
+            "_id": report_id,
             "user_id": auth.user_id,
         })
         .await?;
@@ -269,7 +269,7 @@ pub async fn update_orgs(
     // Update the embedded org_ids array
     reports
         .update_one(
-            doc! { "_id": bson::serialize_to_bson(&report_id).unwrap() },
+            doc! { "_id": report_id },
             doc! { "$set": { "org_ids": bson::serialize_to_bson(&req.org_ids).unwrap() } },
         )
         .await?;
@@ -280,14 +280,14 @@ pub async fn update_orgs(
 pub async fn share(
     State(state): State<AppState>,
     auth: AuthUser,
-    Path(report_id): Path<Uuid>,
+    Path(report_id): Path<ObjectId>,
 ) -> Result<impl IntoResponse, ApiError> {
     let reports = state.db.collection::<Report>("reports");
 
     // Fetch the report to check ownership and existing share_token
     let report = reports
         .find_one(doc! {
-            "_id": bson::serialize_to_bson(&report_id).unwrap(),
+            "_id": report_id,
             "user_id": auth.user_id,
         })
         .await?
@@ -303,7 +303,7 @@ pub async fn share(
 
         reports
             .update_one(
-                doc! { "_id": bson::serialize_to_bson(&report_id).unwrap() },
+                doc! { "_id": report_id },
                 doc! { "$set": {
                     "share_token": &new_token,
                     "shared_at": bson::serialize_to_bson(&now).unwrap(),

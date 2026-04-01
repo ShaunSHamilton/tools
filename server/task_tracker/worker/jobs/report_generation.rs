@@ -37,7 +37,7 @@ pub async fn handle(
 
     reports
         .update_one(
-            doc! { "_id": bson::serialize_to_bson(&report_id).unwrap() },
+            doc! { "_id": report_id },
             doc! { "$set": { "status": "generating", "updated_at": bson::serialize_to_bson(&now).unwrap() } },
         )
         .await
@@ -48,7 +48,7 @@ pub async fn handle(
             let now = chrono::Utc::now();
             reports
                 .update_one(
-                    doc! { "_id": bson::serialize_to_bson(&report_id).unwrap() },
+                    doc! { "_id": report_id },
                     doc! { "$set": {
                         "status": "completed",
                         "content_md": &content_md,
@@ -68,7 +68,7 @@ pub async fn handle(
             let now = chrono::Utc::now();
             reports
                 .update_one(
-                    doc! { "_id": bson::serialize_to_bson(&report_id).unwrap() },
+                    doc! { "_id": report_id },
                     doc! { "$set": {
                         "status": "failed",
                         "error_message": &msg,
@@ -85,7 +85,7 @@ pub async fn handle(
 }
 
 async fn run_generation(
-    report_id: uuid::Uuid,
+    report_id: mongodb::bson::oid::ObjectId,
     db: &Database,
     tb_db: &Database,
     anthropic: &AnthropicProvider,
@@ -93,7 +93,7 @@ async fn run_generation(
 ) -> anyhow::Result<String> {
     let reports = db.collection::<Report>("reports");
     let report = reports
-        .find_one(doc! { "_id": bson::serialize_to_bson(&report_id).unwrap() })
+        .find_one(doc! { "_id": report_id })
         .await
         .context("fetching report")?
         .ok_or_else(|| anyhow::anyhow!("report {} not found", report_id))?;

@@ -6,7 +6,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Report {
     #[serde(rename = "_id")]
-    pub id: Uuid,
+    pub id: ObjectId,
     pub user_id: ObjectId,
     pub org_id: Option<Uuid>,
     pub title: String,
@@ -30,7 +30,7 @@ pub struct Report {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReportSummary {
     #[serde(rename = "_id")]
-    pub id: Uuid,
+    pub id: ObjectId,
     pub title: String,
     pub period_start: NaiveDate,
     pub period_end: NaiveDate,

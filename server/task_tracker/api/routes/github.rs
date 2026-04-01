@@ -8,8 +8,6 @@ use chrono::Utc;
 use mongodb::bson::{doc, oid::ObjectId};
 use serde::Deserialize;
 use serde_json::json;
-use uuid::Uuid;
-
 use crate::task_tracker::shared::{
     error::AppError,
     models::github_connection::{GithubConnection, GithubConnectionDto},
@@ -134,7 +132,7 @@ pub async fn connect_callback(
             .await?;
     } else {
         let conn = GithubConnection {
-            id: Uuid::new_v4(),
+            id: ObjectId::new(),
             user_id,
             github_user_id: gh_user.id,
             github_username: gh_user.login.clone(),

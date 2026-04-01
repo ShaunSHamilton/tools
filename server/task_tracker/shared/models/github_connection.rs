@@ -1,12 +1,11 @@
 use chrono::{DateTime, Utc};
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GithubConnection {
     #[serde(rename = "_id")]
-    pub id: Uuid,
+    pub id: ObjectId,
     pub user_id: ObjectId,
     pub github_user_id: i64,
     pub github_username: String,
