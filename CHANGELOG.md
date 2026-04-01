@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-04-01
+
+### Added
+
+- feat: unify organisations across all three apps
+- feat(notifications): add report_generated notification type
+- feat: add notification system to universal nav
+
+### Fixed
+
+- fix(task-tracker): prefix all api routes with /api
+- fix(server): serialize report ids as hex strings in api responses
+
 ## [0.8.1] - 2026-04-01
 
 ### Fixed
