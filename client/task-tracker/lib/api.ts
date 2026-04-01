@@ -1,4 +1,4 @@
-const BASE = "/task-tracker";
+const BASE = "/task-tracker/api";
 
 export class ApiError extends Error {
   constructor(

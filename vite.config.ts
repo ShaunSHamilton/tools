@@ -112,32 +112,7 @@ export default defineConfig(async () => ({
         secure: false,
       },
       // task-tracker
-      "/task-tracker/auth": {
-        target: `http://127.0.0.1:${process.env.PORT ?? "8080"}`,
-        changeOrigin: true,
-        secure: false,
-      },
-      "/task-tracker/health": {
-        target: `http://127.0.0.1:${process.env.PORT ?? "8080"}`,
-        changeOrigin: true,
-        secure: false,
-      },
-      "/task-tracker/reports": {
-        target: `http://127.0.0.1:${process.env.PORT ?? "8080"}`,
-        changeOrigin: true,
-        secure: false,
-      },
-      "/task-tracker/orgs": {
-        target: `http://127.0.0.1:${process.env.PORT ?? "8080"}`,
-        changeOrigin: true,
-        secure: false,
-      },
-      "/task-tracker/github": {
-        target: `http://127.0.0.1:${process.env.PORT ?? "8080"}`,
-        changeOrigin: true,
-        secure: false,
-      },
-      "/task-tracker/share": {
+      "/task-tracker/api": {
         target: `http://127.0.0.1:${process.env.PORT ?? "8080"}`,
         changeOrigin: true,
         secure: false,

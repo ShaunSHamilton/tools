@@ -62,7 +62,7 @@ pub fn build(
         .allow_methods(Any)
         .allow_headers(Any);
 
-    Router::new()
+    let api = Router::new()
         // Health
         .route("/health", get(health::handler))
         // Auth (session check only — login is handled by team_board)
@@ -92,6 +92,10 @@ pub fn build(
         .route("/orgs/invites/{token}/accept", post(orgs::accept_invite))
         // Public share (no auth)
         .route("/share/{token}", get(share::public_report))
+        .with_state(state);
+
+    Router::new()
+        .nest("/api", api)
         // Rate limiting
         .layer(middleware::from_fn(rate_limit::rate_limit))
         .layer(Extension(limiter))
@@ -114,7 +118,6 @@ pub fn build(
         ))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
-        .with_state(state)
 }
 
 /// Returns the current authenticated user from the team_board session.

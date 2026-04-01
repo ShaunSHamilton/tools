@@ -32,7 +32,7 @@ pub async fn connect_start(
     let connect_state = jwt::encode_connect_state(auth.user_id, &state.config.github_client_secret)
         .map_err(|e| AppError::Internal(e))?;
 
-    let redirect_uri = format!("{}/github/connect/callback", state.config.app_base_url);
+    let redirect_uri = format!("{}/api/github/connect/callback", state.config.app_base_url);
     let url = format!(
         "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope=public_repo&state={}",
         state.config.github_client_id,
