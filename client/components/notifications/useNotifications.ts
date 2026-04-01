@@ -31,7 +31,13 @@ export interface SuggestionAddedPayload {
   suggested_by: string
 }
 
-export type NotificationPayload = OrgInvitePayload | AppReleasePayload | TaskUpvotedPayload | SuggestionAddedPayload
+export interface ReportGeneratedPayload {
+  type: 'report_generated'
+  report_id: string
+  report_title: string
+}
+
+export type NotificationPayload = OrgInvitePayload | AppReleasePayload | TaskUpvotedPayload | SuggestionAddedPayload | ReportGeneratedPayload
 
 export interface AppNotification {
   id: string

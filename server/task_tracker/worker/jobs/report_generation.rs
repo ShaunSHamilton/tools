@@ -8,7 +8,10 @@ use crate::task_tracker::shared::{
     jobs::report_generation::ReportGenerationJob,
     models::{github_connection::GithubConnection, report::Report},
 };
-use crate::team_board::models::user::User;
+use crate::team_board::models::{
+    notification::{Notification, NotificationPayload},
+    user::User,
+};
 
 use crate::task_tracker::worker::{
     github::client::GithubClient,
@@ -44,7 +47,7 @@ pub async fn handle(
         .context("setting report status to generating")?;
 
     match run_generation(report_id, &state.db, &state.tb_db, &state.anthropic, &state.http).await {
-        Ok(content_md) => {
+        Ok((content_md, user_id, report_title)) => {
             let now = chrono::Utc::now();
             reports
                 .update_one(
@@ -60,6 +63,22 @@ pub async fn handle(
                 .context("saving completed report")?;
 
             info!(%report_id, "report generation completed");
+
+            let tb_db = state.tb_db.clone();
+            tokio::spawn(async move {
+                if let Err(e) = Notification::create(
+                    &tb_db,
+                    user_id,
+                    NotificationPayload::ReportGenerated {
+                        report_id,
+                        report_title,
+                    },
+                )
+                .await
+                {
+                    error!(%report_id, error = %e, "failed to create report generated notification");
+                }
+            });
         }
         Err(e) => {
             error!(%report_id, error = %e, "report generation failed");
@@ -90,13 +109,16 @@ async fn run_generation(
     tb_db: &Database,
     anthropic: &AnthropicProvider,
     http: &Client,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<(String, mongodb::bson::oid::ObjectId, String)> {
     let reports = db.collection::<Report>("reports");
     let report = reports
         .find_one(doc! { "_id": report_id })
         .await
         .context("fetching report")?
         .ok_or_else(|| anyhow::anyhow!("report {} not found", report_id))?;
+
+    let user_id = report.user_id;
+    let report_title = report.title.clone();
 
     let user = User::find_by_id(tb_db, &report.user_id)
         .await
@@ -142,5 +164,6 @@ async fn run_generation(
         custom_instructions: report.custom_instructions,
     };
 
-    anthropic.generate(&ctx).await
+    let content_md = anthropic.generate(&ctx).await?;
+    Ok((content_md, user_id, report_title))
 }

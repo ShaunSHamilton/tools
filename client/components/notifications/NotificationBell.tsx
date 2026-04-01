@@ -127,6 +127,33 @@ export function NotificationBell() {
                       </div>
                     )}
 
+                    {payload.type === 'report_generated' && (
+                      <div className="space-y-1">
+                        <p className="text-sm text-gray-800 dark:text-gray-200">
+                          {'Your report '}
+                          <span className="font-medium">{payload.report_title}</span>
+                          {' has finished generating.'}
+                        </p>
+                        {!n.read && (
+                          <div className="flex gap-2">
+                            <a
+                              href={`/task-tracker/reports/${payload.report_id}`}
+                              onClick={() => markRead.mutate(n.id)}
+                              className="text-xs px-3 py-1 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-100"
+                            >
+                              View report
+                            </a>
+                            <button
+                              onClick={() => markRead.mutate(n.id)}
+                              className="text-xs px-3 py-1 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg hover:text-gray-900 dark:hover:text-white hover:border-gray-400 dark:hover:border-gray-500"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {payload.type === 'app_release' && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">

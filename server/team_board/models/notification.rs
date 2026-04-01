@@ -30,6 +30,10 @@ pub enum NotificationPayload {
         suggestion_content: String,
         suggested_by: String,
     },
+    ReportGenerated {
+        report_id: ObjectId,
+        report_title: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -108,6 +112,11 @@ impl Notification {
                         "task_title": task_title,
                         "suggestion_content": suggestion_content,
                         "suggested_by": suggested_by,
+                    }),
+                    NotificationPayload::ReportGenerated { report_id, report_title } => json!({
+                        "type": "report_generated",
+                        "report_id": report_id.to_hex(),
+                        "report_title": report_title,
                     }),
                 };
                 json!({
