@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-04-06
+
+### Other
+
+- refactor(server): remove anyhow, replace with typed errors throughout task_tracker worker
+
 ## [0.10.0] - 2026-04-06
 
 ### Fixed
