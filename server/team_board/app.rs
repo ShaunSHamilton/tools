@@ -7,7 +7,7 @@ use serde::Serialize;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 
-use crate::team_board::{config::Config, ws::OrgPresence};
+use crate::team_board::{config::Config, ws::{OrgPresence, UserNotifHub}};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -17,6 +17,8 @@ pub struct AppState {
     pub http_client: reqwest::Client,
     /// Live WebSocket connections per org
     pub presence: Arc<OrgPresence>,
+    /// Per-user SSE channels for real-time notification delivery
+    pub notif_hub: Arc<UserNotifHub>,
 }
 
 impl axum::extract::FromRef<AppState> for Key {
@@ -42,6 +44,7 @@ pub fn build_state(config: &Config, db: mongodb::Database) -> AppState {
         cookie_key,
         http_client,
         presence: OrgPresence::new(),
+        notif_hub: UserNotifHub::new(),
     }
 }
 
@@ -109,6 +112,10 @@ pub fn create_shared_api_router(state: AppState) -> Router {
         .route(
             "/notifications",
             get(crate::team_board::routes::orgs::list_notifications),
+        )
+        .route(
+            "/notifications/stream",
+            get(crate::team_board::routes::orgs::stream_notifications),
         )
         .route(
             "/notifications/{notif_id}/read",

@@ -449,6 +449,7 @@ pub async fn upvote_task(
     if user_id.0 != updated.assignee_id {
         let db = state.db.clone();
         let presence = state.presence.clone();
+        let notif_hub = state.notif_hub.clone();
         let org_id_hex = updated.org_id.to_hex();
         let assignee_id = updated.assignee_id;
         let task_title = updated.title.clone();
@@ -470,6 +471,7 @@ pub async fn upvote_task(
                 Ok(_) => {
                     let msg = serde_json::json!({ "type": "notification" }).to_string();
                     presence.send_to_user(&org_id_hex, &assignee_id, &msg);
+                    notif_hub.notify(&assignee_id.to_hex());
                 }
                 Err(e) => tracing::error!(error = %e, "failed to create TaskUpvoted notification"),
             }

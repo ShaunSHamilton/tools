@@ -159,6 +159,41 @@ impl OrgPresence {
     }
 }
 
+// ── User notification hub (SSE) ───────────────────────────────────────────────
+
+/// Per-user broadcast channel used to push a "new notification" signal to SSE
+/// streams. Any app (team-board, task-tracker, exam-creator) that opens
+/// `GET /api/notifications/stream` will receive a ping whenever a notification
+/// is created for the authenticated user, so it can re-fetch.
+pub struct UserNotifHub {
+    channels: DashMap<String, tokio::sync::broadcast::Sender<()>>,
+}
+
+impl UserNotifHub {
+    pub fn new() -> Arc<Self> {
+        Arc::new(Self { channels: DashMap::new() })
+    }
+
+    /// Get or create a receiver for `user_id`. The sender is kept alive as long
+    /// as the map entry exists; receivers are cheap to clone per connection.
+    pub fn subscribe(&self, user_id: &str) -> tokio::sync::broadcast::Receiver<()> {
+        let tx = self.channels
+            .entry(user_id.to_string())
+            .or_insert_with(|| {
+                let (tx, _) = tokio::sync::broadcast::channel(16);
+                tx
+            });
+        tx.subscribe()
+    }
+
+    /// Signal all SSE connections for `user_id` that a new notification arrived.
+    pub fn notify(&self, user_id: &str) {
+        if let Some(tx) = self.channels.get(user_id) {
+            let _ = tx.send(());
+        }
+    }
+}
+
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 /// `GET /ws` — upgrades to WebSocket.
@@ -243,6 +278,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, user_id: ObjectId) {
     {
         let current_version = env!("CARGO_PKG_VERSION");
         let db = state.db.clone();
+        let notif_hub = state.notif_hub.clone();
         let notes = extract_version_notes(CHANGELOG, current_version);
         let version_str = current_version.to_string();
 
@@ -273,6 +309,7 @@ async fn handle_socket(socket: WebSocket, state: AppState, user_id: ObjectId) {
                         Ok(_) => {
                             let msg = serde_json::json!({ "type": "notification" }).to_string();
                             let _ = tx_for_notif.send(Message::Text(msg.into()));
+                            notif_hub.notify(&user_id.to_hex());
                         }
                         Err(e) => {
                             tracing::error!(error = %e, "failed to create AppRelease notification");

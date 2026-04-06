@@ -22,6 +22,7 @@ use crate::task_tracker::worker::{
         generator::{EventSummary, ReportContext, ReportGenerator},
     },
 };
+use crate::team_board::ws::UserNotifHub;
 
 pub struct ReportWorkerState {
     pub db: Database,
@@ -30,6 +31,7 @@ pub struct ReportWorkerState {
     pub http: Client,
     pub github_client_id: String,
     pub github_client_secret: String,
+    pub notif_hub: Arc<UserNotifHub>,
 }
 
 pub async fn handle(
@@ -67,8 +69,9 @@ pub async fn handle(
             info!(%report_id, "report generation completed");
 
             let tb_db = state.tb_db.clone();
+            let notif_hub = state.notif_hub.clone();
             tokio::spawn(async move {
-                if let Err(e) = Notification::create(
+                match Notification::create(
                     &tb_db,
                     user_id,
                     NotificationPayload::ReportGenerated {
@@ -78,7 +81,8 @@ pub async fn handle(
                 )
                 .await
                 {
-                    error!(%report_id, error = %e, "failed to create report generated notification");
+                    Ok(_) => notif_hub.notify(&user_id.to_hex()),
+                    Err(e) => error!(%report_id, error = %e, "failed to create report generated notification"),
                 }
             });
         }

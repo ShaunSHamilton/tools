@@ -1,12 +1,15 @@
+use std::convert::Infallible;
 use axum::{
     Extension, Json,
     extract::{Path, State},
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, sse::{Event, KeepAlive, Sse}},
 };
 use futures::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::StreamExt as _;
 
 use crate::auth::ApiUser;
 use crate::team_board::{
@@ -170,6 +173,7 @@ pub async fn invite_member(
             },
         )
         .await?;
+        state.notif_hub.notify(&target.id.to_hex());
     }
 
     Ok(StatusCode::CREATED)
@@ -404,6 +408,20 @@ pub async fn list_notifications(
 ) -> Result<Json<Vec<serde_json::Value>>, ApiError> {
     let notifications = Notification::find_for_user(&state.db, &user_id.0).await?;
     Ok(Json(notifications))
+}
+
+/// `GET /api/notifications/stream` — SSE stream that emits a ping whenever
+/// a new notification is created for the authenticated user. All apps connect
+/// here so they get real-time updates without polling.
+pub async fn stream_notifications(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<UserId>,
+) -> Sse<impl futures::Stream<Item = Result<Event, Infallible>>> {
+    let rx = state.notif_hub.subscribe(&user_id.0.to_hex());
+    let stream = BroadcastStream::new(rx)
+        .filter_map(|r: Result<(), _>| r.ok())
+        .map(|_| Ok::<_, Infallible>(Event::default().data("ping")));
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
 pub async fn mark_notification_read(
