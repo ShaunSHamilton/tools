@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-04-06
+
+### Fixed
+
+- fix(server): refresh github oauth tokens before report generation
+
+### Other
+
+- refactor(server): replace anyhow with typed errors across task_tracker and team_board
+
 ## [0.9.0] - 2026-04-01
 
 ### Added
