@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.10.2] - 2026-04-06
+
+### Added
+
+- feat: add github disconnect and task tracker settings tab
+
+### Fixed
+
+- fix: add SSE endpoint so notifications update in real-time across all apps
+
 ## [0.10.1] - 2026-04-06
 
 ### Other
