@@ -1,4 +1,3 @@
-use anyhow::Context;
 use chrono::Utc;
 use mongodb::{bson::doc, Database};
 use reqwest::Client;
@@ -16,6 +15,7 @@ use crate::team_board::models::{
 };
 
 use crate::task_tracker::worker::{
+    error::WorkerError,
     github::client::GithubClient,
     report::{
         anthropic::AnthropicProvider,
@@ -35,7 +35,7 @@ pub struct ReportWorkerState {
 pub async fn handle(
     job: ReportGenerationJob,
     state: Arc<ReportWorkerState>,
-) -> Result<(), anyhow::Error> {
+) -> Result<(), WorkerError> {
     let report_id = job.report_id;
     info!(%report_id, "starting report generation");
 
@@ -47,8 +47,7 @@ pub async fn handle(
             doc! { "_id": report_id },
             doc! { "$set": { "status": "generating", "updated_at": bson::serialize_to_bson(&now).unwrap() } },
         )
-        .await
-        .context("setting report status to generating")?;
+        .await?;
 
     match run_generation(report_id, &state.db, &state.tb_db, &state.anthropic, &state.http, &state.github_client_id, &state.github_client_secret).await {
         Ok((content_md, user_id, report_title)) => {
@@ -63,8 +62,7 @@ pub async fn handle(
                         "updated_at": bson::serialize_to_bson(&now).unwrap(),
                     }},
                 )
-                .await
-                .context("saving completed report")?;
+                .await?;
 
             info!(%report_id, "report generation completed");
 
@@ -98,8 +96,7 @@ pub async fn handle(
                         "updated_at": bson::serialize_to_bson(&now).unwrap(),
                     }},
                 )
-                .await
-                .context("saving failed report status")?;
+                .await?;
         }
     }
 
@@ -115,21 +112,19 @@ async fn run_generation(
     http: &Client,
     github_client_id: &str,
     github_client_secret: &str,
-) -> anyhow::Result<(String, mongodb::bson::oid::ObjectId, String)> {
+) -> Result<(String, mongodb::bson::oid::ObjectId, String), WorkerError> {
     let reports = db.collection::<Report>("reports");
     let report = reports
         .find_one(doc! { "_id": report_id })
-        .await
-        .context("fetching report")?
-        .ok_or_else(|| anyhow::anyhow!("report {} not found", report_id))?;
+        .await?
+        .ok_or_else(|| WorkerError::Message(format!("report {} not found", report_id)))?;
 
     let user_id = report.user_id;
     let report_title = report.title.clone();
 
     let user = User::find_by_id(tb_db, &report.user_id)
-        .await
-        .context("fetching user")?
-        .ok_or_else(|| anyhow::anyhow!("user not found"))?;
+        .await?
+        .ok_or_else(|| WorkerError::Message("user not found".into()))?;
 
     let display_name = user.name;
 
@@ -137,14 +132,12 @@ async fn run_generation(
     let github_connections = db.collection::<GithubConnection>("github_connections");
     let events = match github_connections
         .find_one(doc! { "user_id": report.user_id })
-        .await
-        .context("fetching github connection")?
+        .await?
     {
         Some(conn) => {
             let access_token = if should_refresh(&conn) {
                 refresh_github_token(&conn, db, http, github_client_id, github_client_secret)
-                    .await
-                    .context("refreshing GitHub token")?
+                    .await?
             } else {
                 conn.access_token.clone()
             };
@@ -155,8 +148,7 @@ async fn run_generation(
                     report.period_start,
                     report.period_end,
                 )
-                .await
-                .context("fetching github events for period")?
+                .await?
                 .into_iter()
                 .map(|e| EventSummary {
                     event_type: e.event_type,
@@ -193,16 +185,18 @@ async fn refresh_github_token(
     http: &Client,
     client_id: &str,
     client_secret: &str,
-) -> anyhow::Result<String> {
+) -> Result<String, WorkerError> {
     if let Some(exp) = conn.refresh_token_expires_at {
         if exp <= Utc::now() {
-            anyhow::bail!("GitHub refresh token has expired — please reconnect GitHub in settings");
+            return Err(WorkerError::Message(
+                "GitHub refresh token has expired — please reconnect GitHub in settings".into(),
+            ));
         }
     }
 
     let refresh_token = conn.refresh_token.as_deref().ok_or_else(|| {
-        anyhow::anyhow!(
-            "GitHub token is expired but no refresh token is stored — please reconnect GitHub in settings"
+        WorkerError::Message(
+            "GitHub token is expired but no refresh token is stored — please reconnect GitHub in settings".into(),
         )
     })?;
 
@@ -224,11 +218,9 @@ async fn refresh_github_token(
             ("refresh_token", refresh_token),
         ])
         .send()
-        .await
-        .context("sending GitHub token refresh request")?
+        .await?
         .json()
-        .await
-        .context("parsing GitHub token refresh response")?;
+        .await?;
 
     let now = Utc::now();
     let token_expires_at = new_token.expires_in.map(|s| now + chrono::Duration::seconds(s));
@@ -245,8 +237,7 @@ async fn refresh_github_token(
                 "refresh_token_expires_at": mongodb::bson::serialize_to_bson(&refresh_token_expires_at).unwrap(),
             }},
         )
-        .await
-        .context("persisting refreshed GitHub token")?;
+        .await?;
 
     Ok(new_token.access_token)
 }

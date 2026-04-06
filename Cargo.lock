@@ -4600,7 +4600,6 @@ dependencies = [
 name = "server"
 version = "0.10.0"
 dependencies = [
- "anyhow",
  "aws-credential-types",
  "aws-sdk-s3",
  "axum",

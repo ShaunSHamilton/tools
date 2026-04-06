@@ -51,8 +51,7 @@ async fn main() {
 
     // ── Task Tracker ─────────────────────────────────────────────────────────
     info!("Initialising task-tracker…");
-    let tt_config = server::task_tracker::shared::config::Config::from_env()
-        .expect("task-tracker config");
+    let tt_config = server::task_tracker::shared::config::Config::from_env();
     let tt_db = server::task_tracker::shared::db::connect(&tt_config.mongodb_uri)
         .await
         .expect("task-tracker MongoDB");

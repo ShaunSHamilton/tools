@@ -1,5 +1,3 @@
-use anyhow::Context;
-
 #[derive(Debug, Clone)]
 pub struct Config {
     pub mongodb_uri: String,
@@ -16,22 +14,20 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_env() -> anyhow::Result<Self> {
-        Ok(Config {
-            mongodb_uri: required("MONGODB_URI")?,
-
-            github_client_id: required("GITHUB_APP_CLIENT_ID")?,
-            github_client_secret: required("GITHUB_APP_CLIENT_SECRET")?,
-
-            anthropic_api_key: required("ANTHROPIC_API_KEY")?,
-
+    pub fn from_env() -> Self {
+        Config {
+            mongodb_uri: required("MONGODB_URI"),
+            github_client_id: required("GITHUB_APP_CLIENT_ID"),
+            github_client_secret: required("GITHUB_APP_CLIENT_SECRET"),
+            anthropic_api_key: required("ANTHROPIC_API_KEY"),
             app_base_url: std::env::var("APP_BASE_URL")
                 .unwrap_or_else(|_| "http://localhost:8080/task-tracker".into()),
             frontend_base_url: std::env::var("FRONTEND_BASE_URL")
                 .unwrap_or_else(|_| "http://localhost:5173/task-tracker".into()),
-        })
+        }
     }
 }
-fn required(key: &str) -> anyhow::Result<String> {
-    std::env::var(key).with_context(|| format!("missing required env var: {key}"))
+
+fn required(key: &str) -> String {
+    std::env::var(key).unwrap_or_else(|_| panic!("missing required env var: {key}"))
 }

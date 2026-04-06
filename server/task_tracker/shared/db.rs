@@ -1,6 +1,6 @@
 use mongodb::options::ClientOptions;
 
-pub async fn connect(uri: &str) -> anyhow::Result<mongodb::Database> {
+pub async fn connect(uri: &str) -> Result<mongodb::Database, mongodb::error::Error> {
     let client_options = ClientOptions::parse(uri).await?;
     let client = mongodb::Client::with_options(client_options)?;
     let db = client

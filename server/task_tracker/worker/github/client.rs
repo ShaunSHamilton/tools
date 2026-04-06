@@ -1,9 +1,9 @@
-use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, NaiveDate, Utc};
 use reqwest::{Client, Response};
 use serde::Deserialize;
 
 use super::normalize::{self, NormalizedEvent};
+use crate::task_tracker::worker::error::WorkerError;
 
 #[derive(Debug, Deserialize)]
 pub struct RawEvent {
@@ -33,7 +33,7 @@ impl GithubClient {
 
     /// Fetch a single page of the authenticated user's public events.
     /// Returns an empty vec on 304 Not Modified.
-    pub async fn fetch_events_page(&self, username: &str, page: u32) -> Result<Vec<RawEvent>> {
+    pub async fn fetch_events_page(&self, username: &str, page: u32) -> Result<Vec<RawEvent>, WorkerError> {
         let url = format!(
             "https://api.github.com/users/{}/events/public?per_page=30&page={}",
             username, page
@@ -46,8 +46,7 @@ impl GithubClient {
             .header("User-Agent", "task-tracker/1.0")
             .header("Accept", "application/vnd.github.v3+json")
             .send()
-            .await
-            .context("sending request to GitHub Events API")?;
+            .await?;
 
         let status = response.status();
 
@@ -64,14 +63,16 @@ impl GithubClient {
                 .and_then(|s| s.parse::<i64>().ok())
                 .unwrap_or(0);
             let wait = (reset_ts - Utc::now().timestamp()).max(0);
-            return Err(anyhow!("GitHub rate limit hit, retry after {}s", wait));
+            return Err(WorkerError::Message(format!("GitHub rate limit hit, retry after {}s", wait)));
         }
 
         if !status.is_success() {
             if status.as_u16() == 401 {
-                return Err(anyhow!("GitHub access token rejected (401) — token may be expired or revoked, please reconnect GitHub in settings"));
+                return Err(WorkerError::Message(
+                    "GitHub access token rejected (401) — token may be expired or revoked, please reconnect GitHub in settings".into(),
+                ));
             }
-            return Err(anyhow!("GitHub API returned {}", status));
+            return Err(WorkerError::Message(format!("GitHub API returned {}", status)));
         }
 
         // Warn when rate limit budget is low
@@ -86,10 +87,7 @@ impl GithubClient {
             }
         }
 
-        let events = response
-            .json::<Vec<RawEvent>>()
-            .await
-            .context("parsing GitHub Events API response")?;
+        let events = response.json::<Vec<RawEvent>>().await?;
 
         Ok(events)
     }
@@ -102,7 +100,7 @@ impl GithubClient {
         username: &str,
         period_start: NaiveDate,
         period_end: NaiveDate,
-    ) -> Result<Vec<NormalizedEvent>> {
+    ) -> Result<Vec<NormalizedEvent>, WorkerError> {
         let mut results = Vec::new();
 
         for page in 1u32..=10 {

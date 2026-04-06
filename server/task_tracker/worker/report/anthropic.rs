@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Context};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use super::generator::{EventSummary, ReportContext, ReportGenerator};
+use crate::task_tracker::worker::error::WorkerError;
 
 const MODEL: &str = "claude-haiku-4-5-20251001";
 const MAX_TOKENS: u32 = 2048;
@@ -47,7 +47,7 @@ impl AnthropicProvider {
 }
 
 impl ReportGenerator for AnthropicProvider {
-    async fn generate(&self, ctx: &ReportContext) -> anyhow::Result<String> {
+    async fn generate(&self, ctx: &ReportContext) -> Result<String, WorkerError> {
         let event_text = format_events(&ctx.events);
         let instructions = ctx
             .custom_instructions
@@ -105,20 +105,17 @@ impl ReportGenerator for AnthropicProvider {
                 }],
             })
             .send()
-            .await
-            .context("sending request to Anthropic API")?
-            .error_for_status()
-            .context("Anthropic API returned an error status")?
+            .await?
+            .error_for_status()?
             .json()
-            .await
-            .context("parsing Anthropic API response")?;
+            .await?;
 
         response
             .content
             .into_iter()
             .find(|b| b.block_type == "text")
             .and_then(|b| b.text)
-            .ok_or_else(|| anyhow!("Anthropic response contained no text content"))
+            .ok_or_else(|| WorkerError::Message("Anthropic response contained no text content".into()))
     }
 }
 
