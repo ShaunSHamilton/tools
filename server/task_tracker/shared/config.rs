@@ -26,9 +26,9 @@ impl Config {
             anthropic_api_key: required("ANTHROPIC_API_KEY")?,
 
             app_base_url: std::env::var("APP_BASE_URL")
-                .unwrap_or_else(|_| "http://localhost:8080".into()),
+                .unwrap_or_else(|_| "http://localhost:8080/task-tracker".into()),
             frontend_base_url: std::env::var("FRONTEND_BASE_URL")
-                .unwrap_or_else(|_| "http://localhost:5173".into()),
+                .unwrap_or_else(|_| "http://localhost:5173/task-tracker".into()),
         })
     }
 }

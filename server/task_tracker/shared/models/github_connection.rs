@@ -10,6 +10,9 @@ pub struct GithubConnection {
     pub github_user_id: i64,
     pub github_username: String,
     pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub token_expires_at: Option<DateTime<Utc>>,
+    pub refresh_token_expires_at: Option<DateTime<Utc>>,
     pub scopes: Option<Vec<String>>,
     pub connected_at: DateTime<Utc>,
 }

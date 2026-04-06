@@ -1,6 +1,8 @@
 use anyhow::Context;
+use chrono::Utc;
 use mongodb::{bson::doc, Database};
 use reqwest::Client;
+use serde::Deserialize;
 use std::sync::Arc;
 use tracing::{error, info};
 
@@ -26,6 +28,8 @@ pub struct ReportWorkerState {
     pub tb_db: Database,
     pub anthropic: AnthropicProvider,
     pub http: Client,
+    pub github_client_id: String,
+    pub github_client_secret: String,
 }
 
 pub async fn handle(
@@ -46,7 +50,7 @@ pub async fn handle(
         .await
         .context("setting report status to generating")?;
 
-    match run_generation(report_id, &state.db, &state.tb_db, &state.anthropic, &state.http).await {
+    match run_generation(report_id, &state.db, &state.tb_db, &state.anthropic, &state.http, &state.github_client_id, &state.github_client_secret).await {
         Ok((content_md, user_id, report_title)) => {
             let now = chrono::Utc::now();
             reports
@@ -109,6 +113,8 @@ async fn run_generation(
     tb_db: &Database,
     anthropic: &AnthropicProvider,
     http: &Client,
+    github_client_id: &str,
+    github_client_secret: &str,
 ) -> anyhow::Result<(String, mongodb::bson::oid::ObjectId, String)> {
     let reports = db.collection::<Report>("reports");
     let report = reports
@@ -135,7 +141,14 @@ async fn run_generation(
         .context("fetching github connection")?
     {
         Some(conn) => {
-            let client = GithubClient::new(conn.access_token, http.clone());
+            let access_token = if should_refresh(&conn) {
+                refresh_github_token(&conn, db, http, github_client_id, github_client_secret)
+                    .await
+                    .context("refreshing GitHub token")?
+            } else {
+                conn.access_token.clone()
+            };
+            let client = GithubClient::new(access_token, http.clone());
             client
                 .fetch_events_for_period(
                     &conn.github_username,
@@ -166,4 +179,74 @@ async fn run_generation(
 
     let content_md = anthropic.generate(&ctx).await?;
     Ok((content_md, user_id, report_title))
+}
+
+fn should_refresh(conn: &GithubConnection) -> bool {
+    conn.token_expires_at
+        .map(|exp| exp - chrono::Duration::minutes(5) <= Utc::now())
+        .unwrap_or(false)
+}
+
+async fn refresh_github_token(
+    conn: &GithubConnection,
+    db: &Database,
+    http: &Client,
+    client_id: &str,
+    client_secret: &str,
+) -> anyhow::Result<String> {
+    if let Some(exp) = conn.refresh_token_expires_at {
+        if exp <= Utc::now() {
+            anyhow::bail!("GitHub refresh token has expired — please reconnect GitHub in settings");
+        }
+    }
+
+    let refresh_token = conn.refresh_token.as_deref().ok_or_else(|| {
+        anyhow::anyhow!(
+            "GitHub token is expired but no refresh token is stored — please reconnect GitHub in settings"
+        )
+    })?;
+
+    #[derive(Deserialize)]
+    struct RefreshedToken {
+        access_token: String,
+        refresh_token: Option<String>,
+        expires_in: Option<i64>,
+        refresh_token_expires_in: Option<i64>,
+    }
+
+    let new_token: RefreshedToken = http
+        .post("https://github.com/login/oauth/access_token")
+        .header("Accept", "application/json")
+        .form(&[
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+        ])
+        .send()
+        .await
+        .context("sending GitHub token refresh request")?
+        .json()
+        .await
+        .context("parsing GitHub token refresh response")?;
+
+    let now = Utc::now();
+    let token_expires_at = new_token.expires_in.map(|s| now + chrono::Duration::seconds(s));
+    let refresh_token_expires_at = new_token.refresh_token_expires_in.map(|s| now + chrono::Duration::seconds(s));
+
+    let github_connections = db.collection::<GithubConnection>("github_connections");
+    github_connections
+        .update_one(
+            doc! { "_id": conn.id },
+            doc! { "$set": {
+                "access_token": &new_token.access_token,
+                "refresh_token": mongodb::bson::serialize_to_bson(&new_token.refresh_token).unwrap(),
+                "token_expires_at": mongodb::bson::serialize_to_bson(&token_expires_at).unwrap(),
+                "refresh_token_expires_at": mongodb::bson::serialize_to_bson(&refresh_token_expires_at).unwrap(),
+            }},
+        )
+        .await
+        .context("persisting refreshed GitHub token")?;
+
+    Ok(new_token.access_token)
 }

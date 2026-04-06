@@ -77,6 +77,8 @@ async fn main() {
                 tt_config.anthropic_api_key.clone(),
             ),
             http: reqwest::Client::new(),
+            github_client_id: tt_config.github_client_id.clone(),
+            github_client_secret: tt_config.github_client_secret.clone(),
         },
     );
     tokio::spawn(async move {

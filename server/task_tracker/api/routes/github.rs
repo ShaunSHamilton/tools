@@ -67,6 +67,9 @@ pub async fn connect_callback(
     struct GithubToken {
         access_token: String,
         scope: Option<String>,
+        refresh_token: Option<String>,
+        expires_in: Option<i64>,
+        refresh_token_expires_in: Option<i64>,
     }
 
     let token: GithubToken = state
@@ -110,6 +113,8 @@ pub async fn connect_callback(
         .collect();
 
     let now = Utc::now();
+    let token_expires_at = token.expires_in.map(|s| now + chrono::Duration::seconds(s));
+    let refresh_token_expires_at = token.refresh_token_expires_in.map(|s| now + chrono::Duration::seconds(s));
     let github_connections = state.db.collection::<GithubConnection>("github_connections");
 
     // Upsert the github_connections document
@@ -125,6 +130,9 @@ pub async fn connect_callback(
                     "github_user_id": gh_user.id,
                     "github_username": &gh_user.login,
                     "access_token": &token.access_token,
+                    "refresh_token": bson::serialize_to_bson(&token.refresh_token).unwrap(),
+                    "token_expires_at": bson::serialize_to_bson(&token_expires_at).unwrap(),
+                    "refresh_token_expires_at": bson::serialize_to_bson(&refresh_token_expires_at).unwrap(),
                     "scopes": bson::serialize_to_bson(&scopes).unwrap(),
                     "connected_at": bson::serialize_to_bson(&now).unwrap(),
                 }},
@@ -137,6 +145,9 @@ pub async fn connect_callback(
             github_user_id: gh_user.id,
             github_username: gh_user.login.clone(),
             access_token: token.access_token.clone(),
+            refresh_token: token.refresh_token.clone(),
+            token_expires_at,
+            refresh_token_expires_at,
             scopes: Some(scopes),
             connected_at: now,
         };

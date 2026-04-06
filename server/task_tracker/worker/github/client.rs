@@ -68,6 +68,9 @@ impl GithubClient {
         }
 
         if !status.is_success() {
+            if status.as_u16() == 401 {
+                return Err(anyhow!("GitHub access token rejected (401) — token may be expired or revoked, please reconnect GitHub in settings"));
+            }
             return Err(anyhow!("GitHub API returned {}", status));
         }
 
