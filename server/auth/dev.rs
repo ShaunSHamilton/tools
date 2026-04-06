@@ -28,7 +28,7 @@ pub async fn dev_login(
     let email = body.email.trim().to_lowercase();
 
     if name.is_empty() || email.is_empty() {
-        return Err(ApiError::BadRequest("name and email are required"));
+        return Err(ApiError::BadRequest("name and email are required".into()));
     }
 
     let user = match User::find_by_email(&state.db, &email).await? {
@@ -55,7 +55,7 @@ pub async fn dev_login(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to create session");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     let cookie = Cookie::build(("sid", session_id))

@@ -180,22 +180,22 @@ pub async fn create_task(
     // Must be a member of the org
     OrgMember::find(&state.db, &org.id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let title = body.title.trim().to_string();
     if title.is_empty() {
-        return Err(ApiError::BadRequest("title is required"));
+        return Err(ApiError::BadRequest("title is required".into()));
     }
 
     let assignee_oid = parse_oid(&body.assignee_id)?;
     // Assignee must also be a member
     OrgMember::find(&state.db, &org.id, &assignee_oid)
         .await?
-        .ok_or(ApiError::BadRequest("assignee is not a member of this org"))?;
+        .ok_or(ApiError::BadRequest("assignee is not a member of this org".into()))?;
 
     let color = body.color.as_deref().unwrap_or(default_color()).to_string();
     if !validate_color(&color) {
-        return Err(ApiError::BadRequest("invalid color"));
+        return Err(ApiError::BadRequest("invalid color".into()));
     }
 
     // Validate collaborators
@@ -236,7 +236,7 @@ pub async fn list_tasks(
     let org = require_org(&state, &org_id).await?;
     OrgMember::find(&state.db, &org.id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let tasks = Task::find_for_org(&state.db, &org.id).await?;
     let mut api_tasks = Vec::with_capacity(tasks.len());
@@ -256,18 +256,18 @@ pub async fn update_task(
 
     let task = Task::find_by_id(&state.db, &task_oid)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     // Must be a member of the task's org
     OrgMember::find(&state.db, &task.org_id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     // Parse status
     let new_status = body
         .status
         .as_deref()
-        .map(|s| TaskStatus::from_str(s).ok_or(ApiError::BadRequest("invalid status")))
+        .map(|s| TaskStatus::from_str(s).ok_or(ApiError::BadRequest("invalid status".into())))
         .transpose()?;
 
     // Validate drop_reason invariant
@@ -281,7 +281,7 @@ pub async fn update_task(
         && effective_drop_reason.as_deref().is_none_or(str::is_empty)
     {
         return Err(ApiError::BadRequest(
-            "drop_reason is required when status is dropped",
+            "drop_reason is required when status is dropped".into(),
         ));
     }
 
@@ -298,7 +298,7 @@ pub async fn update_task(
     if let Some(c) = &body.color
         && !validate_color(c)
     {
-        return Err(ApiError::BadRequest("invalid color"));
+        return Err(ApiError::BadRequest("invalid color".into()));
     }
 
     let new_assignee = body
@@ -314,7 +314,7 @@ pub async fn update_task(
     if let Some(new_aid) = &new_assignee {
         OrgMember::find(&state.db, &task.org_id, new_aid)
             .await?
-            .ok_or(ApiError::BadRequest("assignee is not a member of this org"))?;
+            .ok_or(ApiError::BadRequest("assignee is not a member of this org".into()))?;
     }
 
     // Validate collaborators if provided
@@ -338,7 +338,7 @@ pub async fn update_task(
         new_collaborator_ids,
     )
     .await?
-    .ok_or(ApiError::NotFound("task not found"))?;
+    .ok_or(ApiError::NotFound("task not found".into()))?;
 
     let api = task_to_api(&state.db, &updated, &user_id.0).await?;
     state.presence.broadcast(
@@ -359,11 +359,11 @@ pub async fn reorder_task(
 
     let task = Task::find_by_id(&state.db, &task_oid)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     OrgMember::find(&state.db, &task.org_id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let before_oid = body.before_id.as_deref().map(parse_oid).transpose()?;
     let after_oid = body.after_id.as_deref().map(parse_oid).transpose()?;
@@ -375,7 +375,7 @@ pub async fn reorder_task(
         after_oid.as_ref(),
     )
     .await?
-    .ok_or(ApiError::NotFound("task not found"))?;
+    .ok_or(ApiError::NotFound("task not found".into()))?;
 
     state.presence.broadcast(
         &task.org_id.to_hex(),
@@ -402,11 +402,11 @@ pub async fn delete_task(
 
     let task = Task::find_by_id(&state.db, &task_oid)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     OrgMember::find(&state.db, &task.org_id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let deleted = Task::delete(&state.db, &task_oid, &task.org_id).await?;
     if deleted {
@@ -416,7 +416,7 @@ pub async fn delete_task(
         );
         Ok(StatusCode::NO_CONTENT)
     } else {
-        Err(ApiError::NotFound("task not found"))
+        Err(ApiError::NotFound("task not found".into()))
     }
 }
 
@@ -429,15 +429,15 @@ pub async fn upvote_task(
 
     let task = Task::find_by_id(&state.db, &task_oid)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     OrgMember::find(&state.db, &task.org_id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let updated = Task::add_upvote(&state.db, &task_oid, &user_id.0)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     let api = task_to_api(&state.db, &updated, &user_id.0).await?;
     state.presence.broadcast(
@@ -488,15 +488,15 @@ pub async fn remove_upvote(
 
     let task = Task::find_by_id(&state.db, &task_oid)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     OrgMember::find(&state.db, &task.org_id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let updated = Task::remove_upvote(&state.db, &task_oid, &user_id.0)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     let api = task_to_api(&state.db, &updated, &user_id.0).await?;
     state.presence.broadcast(
@@ -520,7 +520,7 @@ async fn parse_and_validate_collaborators(
         let oid = parse_oid(s)?;
         OrgMember::find(db, org_id, &oid)
             .await?
-            .ok_or(ApiError::BadRequest("collaborator is not a member of this org"))?;
+            .ok_or(ApiError::BadRequest("collaborator is not a member of this org".into()))?;
         oids.push(oid);
     }
     Ok(oids)

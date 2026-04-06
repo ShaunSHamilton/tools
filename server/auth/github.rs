@@ -64,10 +64,10 @@ pub async fn github_callback(
         let stored = jar
             .get("oauth_state")
             .map(|c| c.value().to_string())
-            .ok_or(ApiError::Unauthorized("missing OAuth state cookie"))?;
+            .ok_or(ApiError::Unauthorized("missing OAuth state cookie".into()))?;
 
         if stored != params.state {
-            return Err(ApiError::Unauthorized("OAuth state mismatch"));
+            return Err(ApiError::Unauthorized("OAuth state mismatch".into()));
         }
     }
     let jar = jar.remove("oauth_state");
@@ -117,7 +117,7 @@ pub async fn github_callback(
     .await
     .map_err(|e| {
         tracing::error!(error = %e, "db error during github login");
-        ApiError::Internal
+        ApiError::Internal("internal server error".into())
     })?;
 
     // 6. Ensure the user is a member of the freeCodeCamp org.
@@ -137,7 +137,7 @@ pub async fn github_callback(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to create session");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     let cookie = Cookie::build(("sid", session_id))
@@ -184,18 +184,18 @@ async fn exchange_code(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "github token exchange request failed");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?
         .error_for_status()
         .map_err(|e| {
             tracing::error!(error = %e, "github token exchange returned error status");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?
         .text()
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to read token exchange response body");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     tracing::debug!(token_exchange_response = text);
@@ -204,11 +204,11 @@ async fn exchange_code(
         Ok(TokenResponse::Ok { access_token }) => Ok(access_token),
         Ok(TokenResponse::Err { error, error_description }) => {
             tracing::warn!(error, error_description, "github token exchange error");
-            Err(ApiError::Unauthorized("GitHub login link has expired, please try again"))
+            Err(ApiError::Unauthorized("GitHub login link has expired, please try again".into()))
         }
         Err(e) => {
             tracing::error!(error = %e, "failed to deserialize token exchange response");
-            Err(ApiError::Internal)
+            Err(ApiError::Internal("internal server error".into()))
         }
     }
 }
@@ -232,12 +232,12 @@ fn create_app_jwt(client_id: &str, private_key_pem: &str) -> Result<String, ApiE
 
     let key = EncodingKey::from_rsa_pem(private_key_pem.as_bytes()).map_err(|e| {
         tracing::error!(error = %e, "failed to parse GitHub App private key");
-        ApiError::Internal
+        ApiError::Internal("internal server error".into())
     })?;
 
     jsonwebtoken::encode(&Header::new(Algorithm::RS256), &claims, &key).map_err(|e| {
         tracing::error!(error = %e, "failed to sign GitHub App JWT");
-        ApiError::Internal
+        ApiError::Internal("internal server error".into())
     })
 }
 
@@ -286,18 +286,18 @@ async fn fetch_org_installation_id(app_jwt: &str, http_client: &Client) -> Resul
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to fetch org installation");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?
         .error_for_status()
         .map_err(|e| {
             tracing::error!(error = %e, "org installation request returned error status");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?
         .text()
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to read org installation response body");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     tracing::debug!(org_installation = text);
@@ -305,7 +305,7 @@ async fn fetch_org_installation_id(app_jwt: &str, http_client: &Client) -> Resul
     serde_json::from_str::<Installation>(&text)
         .map_err(|e| {
             tracing::error!(error = %e, "failed to deserialize org installation response");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })
         .map(|i| i.id)
 }
@@ -333,18 +333,18 @@ async fn create_installation_token(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to create installation token");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?
         .error_for_status()
         .map_err(|e| {
             tracing::error!(error = %e, "installation token request returned error status");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?
         .text()
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to read installation token response body");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     tracing::debug!(installation_token_response = text);
@@ -352,7 +352,7 @@ async fn create_installation_token(
     serde_json::from_str::<TokenResponse>(&text)
         .map_err(|e| {
             tracing::error!(error = %e, "failed to deserialize installation token response");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })
         .map(|r| r.token)
 }
@@ -380,37 +380,37 @@ async fn check_team_membership(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to check team membership");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     let status = res.status();
 
     let text = res.text().await.map_err(|e| {
         tracing::error!(error = %e, "failed to read team membership response body");
-        ApiError::Internal
+        ApiError::Internal("internal server error".into())
     })?;
 
     tracing::debug!(team_membership_status = %status, team_membership_response = text);
 
     if status == 404 {
         return Err(ApiError::Unauthorized(
-            "not a member of the freeCodeCamp staff team",
+            "not a member of the freeCodeCamp staff team".into(),
         ));
     }
 
     if !status.is_success() {
         tracing::error!(status = %status, "team membership request returned error status");
-        return Err(ApiError::Internal);
+        return Err(ApiError::Internal("internal server error".into()));
     }
 
     let membership = serde_json::from_str::<TeamMembership>(&text).map_err(|e| {
         tracing::error!(error = %e, "failed to deserialize team membership response");
-        ApiError::Internal
+        ApiError::Internal("internal server error".into())
     })?;
 
     if membership.state != "active" {
         return Err(ApiError::Unauthorized(
-            "freeCodeCamp staff team membership is not active",
+            "freeCodeCamp staff team membership is not active".into(),
         ));
     }
 
@@ -453,25 +453,25 @@ async fn fetch_user(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to fetch GitHub user info");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?
         .error_for_status()
         .map_err(|e| {
             tracing::warn!(error = %e, "GitHub user info request failed");
-            ApiError::Unauthorized("GitHub API request failed")
+            ApiError::Unauthorized("GitHub API request failed".into())
         })?
         .text()
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to read GitHub user info response body");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     tracing::debug!(github_user_info = text);
 
     serde_json::from_str::<GitHubUser>(&text).map_err(|e| {
         tracing::error!(error = %e, "failed to deserialize GitHub user info");
-        ApiError::Internal
+        ApiError::Internal("internal server error".into())
     })
 }
 
@@ -501,25 +501,25 @@ async fn fetch_primary_email(
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to fetch GitHub user emails");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?
         .error_for_status()
         .map_err(|e| {
             tracing::warn!(error = %e, "GitHub user emails request failed");
-            ApiError::Unauthorized("GitHub API request failed")
+            ApiError::Unauthorized("GitHub API request failed".into())
         })?
         .text()
         .await
         .map_err(|e| {
             tracing::error!(error = %e, "failed to read GitHub user emails response body");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     tracing::debug!(github_user_emails = text);
 
     let emails = serde_json::from_str::<Vec<EmailEntry>>(&text).map_err(|e| {
         tracing::error!(error = %e, "failed to deserialize GitHub user emails");
-        ApiError::Internal
+        ApiError::Internal("internal server error".into())
     })?;
 
     emails
@@ -527,6 +527,6 @@ async fn fetch_primary_email(
         .find(|e| e.primary && e.verified)
         .map(|e| e.email)
         .ok_or(ApiError::Unauthorized(
-            "no verified primary email on GitHub account",
+            "no verified primary email on GitHub account".into(),
         ))
 }

@@ -29,8 +29,7 @@ pub async fn connect_start(
     State(state): State<AppState>,
     auth: AuthUser,
 ) -> Result<impl IntoResponse, ApiError> {
-    let connect_state = jwt::encode_connect_state(auth.user_id, &state.config.github_client_secret)
-        .map_err(|e| AppError::Internal(e))?;
+    let connect_state = jwt::encode_connect_state(auth.user_id, &state.config.github_client_secret)?;
 
     let redirect_uri = format!("{}/api/github/connect/callback", state.config.app_base_url);
     let url = format!(

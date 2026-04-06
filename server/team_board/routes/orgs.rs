@@ -80,7 +80,7 @@ pub async fn create_org(
 ) -> Result<impl IntoResponse, ApiError> {
     let name = body.name.trim().to_string();
     if name.is_empty() {
-        return Err(ApiError::BadRequest("name is required"));
+        return Err(ApiError::BadRequest("name is required".into()));
     }
 
     let org = Org::create(&state.db, name, user_id.0).await?;
@@ -128,7 +128,7 @@ pub async fn invite_member(
 
     let email = body.email.trim().to_lowercase();
     if email.is_empty() {
-        return Err(ApiError::BadRequest("email is required"));
+        return Err(ApiError::BadRequest("email is required".into()));
     }
 
     // Check the target isn't already a member
@@ -137,7 +137,7 @@ pub async fn invite_member(
             .await?
             .is_some()
     {
-        return Err(ApiError::BadRequest("user is already a member"));
+        return Err(ApiError::BadRequest("user is already a member".into()));
     }
 
     // Check no pending invite already exists
@@ -145,14 +145,14 @@ pub async fn invite_member(
         .await?
         .is_some()
     {
-        return Err(ApiError::BadRequest("a pending invitation already exists"));
+        return Err(ApiError::BadRequest("a pending invitation already exists".into()));
     }
 
     let inviter = User::find_by_id(&state.db, &user_id.0)
         .await?
         .ok_or_else(|| {
             tracing::error!(user_id = %user_id.0, "inviter user not found in db");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     let invitation = Invitation::create(&state.db, org.id, email.clone(), user_id.0).await?;
@@ -188,13 +188,13 @@ pub async fn remove_member(
 
     let target_member = OrgMember::find(&state.db, &org.id, &target_oid)
         .await?
-        .ok_or(ApiError::NotFound("member not found"))?;
+        .ok_or(ApiError::NotFound("member not found".into()))?;
 
     // Prevent removing the last admin
     if target_member.role == Role::Admin {
         let admin_count = OrgMember::count_admins(&state.db, &org.id).await?;
         if admin_count <= 1 {
-            return Err(ApiError::BadRequest("cannot remove the last admin"));
+            return Err(ApiError::BadRequest("cannot remove the last admin".into()));
         }
     }
 
@@ -222,7 +222,7 @@ pub async fn change_role(
     let new_role = match body.role.as_str() {
         "admin" => Role::Admin,
         "member" => Role::Member,
-        _ => return Err(ApiError::BadRequest("role must be 'admin' or 'member'")),
+        _ => return Err(ApiError::BadRequest("role must be 'admin' or 'member'".into())),
     };
 
     let target_oid = parse_oid(&target_user_id)?;
@@ -231,12 +231,12 @@ pub async fn change_role(
     if new_role == Role::Member {
         let target_member = OrgMember::find(&state.db, &org.id, &target_oid)
             .await?
-            .ok_or(ApiError::NotFound("member not found"))?;
+            .ok_or(ApiError::NotFound("member not found".into()))?;
 
         if target_member.role == Role::Admin {
             let admin_count = OrgMember::count_admins(&state.db, &org.id).await?;
             if admin_count <= 1 {
-                return Err(ApiError::BadRequest("cannot demote the last admin"));
+                return Err(ApiError::BadRequest("cannot demote the last admin".into()));
             }
         }
     }
@@ -310,10 +310,10 @@ pub async fn cancel_invitation(
     let invite_oid = parse_oid(&invite_id)?;
     let invite = crate::team_board::models::invitation::Invitation::find_by_id(&state.db, &invite_oid)
         .await?
-        .ok_or(ApiError::NotFound("invitation not found"))?;
+        .ok_or(ApiError::NotFound("invitation not found".into()))?;
 
     if invite.org_id != org.id {
-        return Err(ApiError::NotFound("invitation not found"));
+        return Err(ApiError::NotFound("invitation not found".into()));
     }
 
     crate::team_board::models::invitation::Invitation::delete(&state.db, &invite_oid).await?;
@@ -331,10 +331,10 @@ pub async fn accept_invite(
     let invite_oid = parse_oid(&invite_id)?;
     let invite = Invitation::find_by_id(&state.db, &invite_oid)
         .await?
-        .ok_or(ApiError::NotFound("invitation not found"))?;
+        .ok_or(ApiError::NotFound("invitation not found".into()))?;
 
     if invite.status != InvitationStatus::Pending {
-        return Err(ApiError::BadRequest("invitation is no longer pending"));
+        return Err(ApiError::BadRequest("invitation is no longer pending".into()));
     }
 
     // Verify the current user's email matches the invitation
@@ -342,11 +342,11 @@ pub async fn accept_invite(
         .await?
         .ok_or_else(|| {
             tracing::error!(user_id = %user_id.0, "user not found in db during invite accept");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     if user.email != invite.invited_email {
-        return Err(ApiError::Unauthorized("unauthorized"));
+        return Err(ApiError::Unauthorized("unauthorized".into()));
     }
 
     OrgMember::add(&state.db, invite.org_id, user_id.0, Role::Member).await?;
@@ -374,21 +374,21 @@ pub async fn decline_invite(
     let invite_oid = parse_oid(&invite_id)?;
     let invite = Invitation::find_by_id(&state.db, &invite_oid)
         .await?
-        .ok_or(ApiError::NotFound("invitation not found"))?;
+        .ok_or(ApiError::NotFound("invitation not found".into()))?;
 
     if invite.status != InvitationStatus::Pending {
-        return Err(ApiError::BadRequest("invitation is no longer pending"));
+        return Err(ApiError::BadRequest("invitation is no longer pending".into()));
     }
 
     let user = User::find_by_id(&state.db, &user_id.0)
         .await?
         .ok_or_else(|| {
             tracing::error!(user_id = %user_id.0, "user not found in db during invite decline");
-            ApiError::Internal
+            ApiError::Internal("internal server error".into())
         })?;
 
     if user.email != invite.invited_email {
-        return Err(ApiError::Unauthorized("unauthorized"));
+        return Err(ApiError::Unauthorized("unauthorized".into()));
     }
 
     Invitation::set_status(&state.db, &invite_oid, InvitationStatus::Declined).await?;
@@ -423,7 +423,7 @@ pub async fn require_org(state: &AppState, org_id: &str) -> Result<Org, ApiError
     let oid = parse_oid(org_id)?;
     Org::find_by_id(&state.db, &oid)
         .await?
-        .ok_or(ApiError::NotFound("organisation not found"))
+        .ok_or(ApiError::NotFound("organisation not found".into()))
 }
 
 async fn require_member(
@@ -433,7 +433,7 @@ async fn require_member(
 ) -> Result<OrgMember, ApiError> {
     OrgMember::find(&state.db, org_id, user_id)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))
 }
 
 async fn require_role(
@@ -444,11 +444,11 @@ async fn require_role(
 ) -> Result<(), ApiError> {
     let member = require_member(state, org_id, user_id).await?;
     if member.role != required {
-        return Err(ApiError::Unauthorized("unauthorized"));
+        return Err(ApiError::Unauthorized("unauthorized".into()));
     }
     Ok(())
 }
 
 pub fn parse_oid(s: &str) -> Result<mongodb::bson::oid::ObjectId, ApiError> {
-    s.parse().map_err(|_| ApiError::BadRequest("invalid id"))
+    s.parse().map_err(|_| ApiError::BadRequest("invalid id".into()))
 }

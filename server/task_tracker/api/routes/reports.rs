@@ -111,7 +111,7 @@ pub async fn create(
     state
         .report_queue
         .send(job)
-        .map_err(|e| anyhow::anyhow!("failed to enqueue report job: {e}"))?;
+        .map_err(|e| AppError::Internal(format!("failed to enqueue report job: {e}")))?;
 
     Ok((StatusCode::CREATED, Json(report)))
 }

@@ -5,11 +5,20 @@ use axum::{
 };
 use serde_json::json;
 
+#[derive(Debug, thiserror::Error)]
 pub enum ApiError {
-    BadRequest(&'static str),
-    Unauthorized(&'static str),
-    NotFound(&'static str),
-    Internal,
+    #[error("{0}")]
+    BadRequest(String),
+    #[error("{0}")]
+    Unauthorized(String),
+    #[error("{0}")]
+    Forbidden(String),
+    #[error("{0}")]
+    NotFound(String),
+    #[error("{0}")]
+    Conflict(String),
+    #[error("{0}")]
+    Internal(String),
 }
 
 impl IntoResponse for ApiError {
@@ -17,8 +26,13 @@ impl IntoResponse for ApiError {
         let (status, message) = match self {
             ApiError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg),
             ApiError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg),
+            ApiError::Forbidden(msg) => (StatusCode::FORBIDDEN, msg),
             ApiError::NotFound(msg) => (StatusCode::NOT_FOUND, msg),
-            ApiError::Internal => (StatusCode::INTERNAL_SERVER_ERROR, "internal server error"),
+            ApiError::Conflict(msg) => (StatusCode::CONFLICT, msg),
+            ApiError::Internal(msg) => {
+                tracing::error!(msg, "internal error");
+                (StatusCode::INTERNAL_SERVER_ERROR, "internal server error".into())
+            }
         };
         (status, Json(json!({ "error": message }))).into_response()
     }
@@ -27,6 +41,6 @@ impl IntoResponse for ApiError {
 impl From<mongodb::error::Error> for ApiError {
     fn from(e: mongodb::error::Error) -> Self {
         tracing::error!(error = %e, "database error");
-        ApiError::Internal
+        ApiError::Internal("database error".into())
     }
 }

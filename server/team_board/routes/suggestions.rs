@@ -64,7 +64,7 @@ async fn suggestion_to_api(
         .find_one(mongodb::bson::doc! { "_id": suggestion.created_by })
         .await?
         .map(|u| ApiUser::without_email(&u))
-        .ok_or(ApiError::Internal)?;
+        .ok_or(ApiError::Internal("internal server error".into()))?;
 
     Ok(ApiSuggestion {
         id: suggestion.id.to_hex(),
@@ -94,18 +94,18 @@ pub async fn create_suggestion(
 
     let task = Task::find_by_id(&state.db, &task_oid)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     OrgMember::find(&state.db, &task.org_id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let content = body.content.trim().to_string();
     if content.is_empty() {
-        return Err(ApiError::BadRequest("content is required"));
+        return Err(ApiError::BadRequest("content is required".into()));
     }
     if content.chars().count() > 50 {
-        return Err(ApiError::BadRequest("content must be 50 characters or fewer"));
+        return Err(ApiError::BadRequest("content must be 50 characters or fewer".into()));
     }
 
     let suggestion = Suggestion::create(
@@ -173,11 +173,11 @@ pub async fn list_suggestions(
 
     let task = Task::find_by_id(&state.db, &task_oid)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     OrgMember::find(&state.db, &task.org_id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let suggestions = Suggestion::find_by_task(&state.db, &task_oid).await?;
     let mut api_suggestions = Vec::with_capacity(suggestions.len());
@@ -196,17 +196,17 @@ pub async fn delete_suggestion(
 
     let suggestion = Suggestion::find_by_id(&state.db, &suggestion_oid)
         .await?
-        .ok_or(ApiError::NotFound("suggestion not found"))?;
+        .ok_or(ApiError::NotFound("suggestion not found".into()))?;
 
     let task = Task::find_by_id(&state.db, &suggestion.task_id)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     // Only the suggestion author or the task assignee (owner) can delete
     let is_author = suggestion.created_by == user_id.0;
     let is_task_owner = task.assignee_id == user_id.0;
     if !is_author && !is_task_owner {
-        return Err(ApiError::Unauthorized("unauthorized"));
+        return Err(ApiError::Unauthorized("unauthorized".into()));
     }
 
     let deleted = Suggestion::delete(&state.db, &suggestion_oid).await?;
@@ -221,7 +221,7 @@ pub async fn delete_suggestion(
         );
         Ok(StatusCode::NO_CONTENT)
     } else {
-        Err(ApiError::NotFound("suggestion not found"))
+        Err(ApiError::NotFound("suggestion not found".into()))
     }
 }
 
@@ -234,20 +234,20 @@ pub async fn dismiss_suggestion(
 
     let suggestion = Suggestion::find_by_id(&state.db, &suggestion_oid)
         .await?
-        .ok_or(ApiError::NotFound("suggestion not found"))?;
+        .ok_or(ApiError::NotFound("suggestion not found".into()))?;
 
     let task = Task::find_by_id(&state.db, &suggestion.task_id)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     // Only the task assignee (owner) can dismiss
     if task.assignee_id != user_id.0 {
-        return Err(ApiError::Unauthorized("only the task owner can dismiss suggestions"));
+        return Err(ApiError::Unauthorized("only the task owner can dismiss suggestions".into()));
     }
 
     let updated = Suggestion::set_dismissed(&state.db, &suggestion_oid, !suggestion.dismissed)
         .await?
-        .ok_or(ApiError::NotFound("suggestion not found"))?;
+        .ok_or(ApiError::NotFound("suggestion not found".into()))?;
 
     let api = suggestion_to_api(&state.db, &updated, &user_id.0).await?;
     state.presence.broadcast(
@@ -267,19 +267,19 @@ pub async fn vote_suggestion(
 
     let suggestion = Suggestion::find_by_id(&state.db, &suggestion_oid)
         .await?
-        .ok_or(ApiError::NotFound("suggestion not found"))?;
+        .ok_or(ApiError::NotFound("suggestion not found".into()))?;
 
     let task = Task::find_by_id(&state.db, &suggestion.task_id)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     OrgMember::find(&state.db, &task.org_id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let updated = Suggestion::add_vote(&state.db, &suggestion_oid, &user_id.0)
         .await?
-        .ok_or(ApiError::NotFound("suggestion not found"))?;
+        .ok_or(ApiError::NotFound("suggestion not found".into()))?;
 
     let api = suggestion_to_api(&state.db, &updated, &user_id.0).await?;
     state.presence.broadcast(
@@ -299,19 +299,19 @@ pub async fn remove_vote_suggestion(
 
     let suggestion = Suggestion::find_by_id(&state.db, &suggestion_oid)
         .await?
-        .ok_or(ApiError::NotFound("suggestion not found"))?;
+        .ok_or(ApiError::NotFound("suggestion not found".into()))?;
 
     let task = Task::find_by_id(&state.db, &suggestion.task_id)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     OrgMember::find(&state.db, &task.org_id, &user_id.0)
         .await?
-        .ok_or(ApiError::Unauthorized("unauthorized"))?;
+        .ok_or(ApiError::Unauthorized("unauthorized".into()))?;
 
     let updated = Suggestion::remove_vote(&state.db, &suggestion_oid, &user_id.0)
         .await?
-        .ok_or(ApiError::NotFound("suggestion not found"))?;
+        .ok_or(ApiError::NotFound("suggestion not found".into()))?;
 
     let api = suggestion_to_api(&state.db, &updated, &user_id.0).await?;
     state.presence.broadcast(
@@ -332,15 +332,15 @@ pub async fn reorder_suggestion(
 
     let suggestion = Suggestion::find_by_id(&state.db, &suggestion_oid)
         .await?
-        .ok_or(ApiError::NotFound("suggestion not found"))?;
+        .ok_or(ApiError::NotFound("suggestion not found".into()))?;
 
     let task = Task::find_by_id(&state.db, &suggestion.task_id)
         .await?
-        .ok_or(ApiError::NotFound("task not found"))?;
+        .ok_or(ApiError::NotFound("task not found".into()))?;
 
     // Only the task assignee (owner) can reorder
     if task.assignee_id != user_id.0 {
-        return Err(ApiError::Unauthorized("only the task owner can reorder suggestions"));
+        return Err(ApiError::Unauthorized("only the task owner can reorder suggestions".into()));
     }
 
     let before_oid = body.before_id.as_deref().map(parse_oid).transpose()?;
@@ -353,7 +353,7 @@ pub async fn reorder_suggestion(
         after_oid.as_ref(),
     )
     .await?
-    .ok_or(ApiError::NotFound("suggestion not found"))?;
+    .ok_or(ApiError::NotFound("suggestion not found".into()))?;
 
     state.presence.broadcast(
         &task.org_id.to_hex(),

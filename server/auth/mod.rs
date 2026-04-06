@@ -81,7 +81,7 @@ pub async fn me(
 ) -> Result<Json<ApiUser>, ApiError> {
     let user = User::find_by_id(&state.db, &user_id.0)
         .await?
-        .ok_or(ApiError::NotFound("user not found"))?;
+        .ok_or(ApiError::NotFound("user not found".into()))?;
 
     Ok(Json(ApiUser::from(&user)))
 }
@@ -102,13 +102,13 @@ pub async fn update_me(
                 Some(None) // blank string — clear the display name
             } else if trimmed.len() > 50 {
                 return Err(ApiError::BadRequest(
-                    "display_name must be 50 characters or fewer",
+                    "display_name must be 50 characters or fewer".into(),
                 ));
             } else {
                 Some(Some(trimmed))
             }
         }
-        _ => return Err(ApiError::BadRequest("display_name must be a string or null")),
+        _ => return Err(ApiError::BadRequest("display_name must be a string or null".into())),
     };
 
     let user = User::update_settings(
@@ -118,7 +118,7 @@ pub async fn update_me(
         body.show_live_cursors,
     )
     .await?
-    .ok_or(ApiError::NotFound("user not found"))?;
+    .ok_or(ApiError::NotFound("user not found".into()))?;
 
     Ok(Json(ApiUser::from(&user)))
 }

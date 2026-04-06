@@ -1,6 +1,7 @@
-use anyhow::Context;
 use chrono::Utc;
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{
+    decode, encode, errors::Error, DecodingKey, EncodingKey, Header, Validation,
+};
 use mongodb::bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
@@ -17,7 +18,7 @@ pub struct ConnectStateClaims {
     pub exp: i64,
 }
 
-pub fn encode_connect_state(user_id: ObjectId, secret: &str) -> anyhow::Result<String> {
+pub fn encode_connect_state(user_id: ObjectId, secret: &str) -> Result<String, Error> {
     let now = Utc::now().timestamp();
     let claims = ConnectStateClaims {
         sub: user_id.to_hex(),
@@ -30,19 +31,17 @@ pub fn encode_connect_state(user_id: ObjectId, secret: &str) -> anyhow::Result<S
         &claims,
         &EncodingKey::from_secret(secret.as_bytes()),
     )
-    .context("encoding connect state jwt")
 }
 
-pub fn decode_connect_state(token: &str, secret: &str) -> anyhow::Result<ConnectStateClaims> {
+pub fn decode_connect_state(token: &str, secret: &str) -> Result<ConnectStateClaims, Error> {
     let data = decode::<ConnectStateClaims>(
         token,
         &DecodingKey::from_secret(secret.as_bytes()),
         &Validation::default(),
-    )
-    .context("decoding connect state jwt")?;
+    )?;
 
     if data.claims.purpose != "github_connect" {
-        anyhow::bail!("invalid connect state token purpose");
+        return Err(jsonwebtoken::errors::ErrorKind::InvalidToken.into());
     }
 
     Ok(data.claims)
