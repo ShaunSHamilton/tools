@@ -164,6 +164,20 @@ pub async fn connect_callback(
     Ok((StatusCode::FOUND, headers))
 }
 
+// ─── Disconnect ───────────────────────────────────────────────────────────────
+
+/// Removes the GitHub connection for the authenticated user.
+pub async fn disconnect(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> Result<impl IntoResponse, ApiError> {
+    let github_connections = state.db.collection::<GithubConnection>("github_connections");
+    github_connections
+        .delete_one(doc! { "user_id": auth.user_id })
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 // ─── Status ───────────────────────────────────────────────────────────────────
 
 /// Returns the current GitHub connection status for the authenticated user.

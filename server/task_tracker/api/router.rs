@@ -71,6 +71,7 @@ pub fn build(
         .route("/github/connect/start", post(github::connect_start))
         .route("/github/connect/callback", get(github::connect_callback))
         .route("/github/status", get(github::status))
+        .route("/github/disconnect", axum::routing::delete(github::disconnect))
         // Reports
         .route("/reports", post(reports::create).get(reports::list))
         .route(

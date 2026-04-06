@@ -144,4 +144,7 @@ export const github = {
 
   connectStart: () =>
     request<{ url: string }>("/github/connect/start", { method: "POST" }),
+
+  disconnect: () =>
+    request<void>("/github/disconnect", { method: "DELETE" }),
 };

@@ -13,6 +13,8 @@ import {
   useOrgInvitations,
   useCancelInvitation,
 } from "@/hooks/useOrgs";
+import { github as githubApi } from "@/task-tracker/lib/api";
+import type { GithubStatusConnected } from "@/task-tracker/lib/api";
 
 // ─── Auth/User (universal endpoint) ──────────────────────────────────────────
 
@@ -100,7 +102,7 @@ function applyTheme(t: Theme) {
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-type Tab = "general" | "team-board" | "exam-creator" | "organisations";
+type Tab = "general" | "team-board" | "task-tracker" | "exam-creator" | "organisations";
 
 // ─── Settings Page ────────────────────────────────────────────────────────────
 
@@ -195,6 +197,7 @@ export function SettingsPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "general", label: "General" },
     { id: "team-board", label: "Team Board" },
+    { id: "task-tracker", label: "Task Tracker" },
     { id: "exam-creator", label: "Exam Creator" },
     { id: "organisations", label: "Organisations" },
   ];
@@ -366,6 +369,9 @@ export function SettingsPage() {
                 </form>
               )}
 
+              {/* ── Task Tracker ── */}
+              {tab === "task-tracker" && <TaskTrackerTab />}
+
               {/* ── Organisations ── */}
               {tab === "organisations" && (
                 <OrgsTab currentUserId={user.id} />
@@ -432,6 +438,78 @@ export function SettingsPage() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+// ─── Task Tracker tab ─────────────────────────────────────────────────────────
+
+function TaskTrackerTab() {
+  const qc = useQueryClient();
+
+  const { data: ghStatus, isLoading } = useQuery({
+    queryKey: ["tt-github-status"],
+    queryFn: () => githubApi.status(),
+    retry: false,
+  });
+
+  const connectMutation = useMutation({
+    mutationFn: () => githubApi.connectStart(),
+    onSuccess: ({ url }) => { window.location.href = url; },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () => githubApi.disconnect(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tt-github-status"] });
+      toast.success("GitHub disconnected");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const connected = ghStatus?.connected === true;
+  const conn = connected ? (ghStatus as GithubStatusConnected).connection : null;
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">GitHub connection</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+          Used to fetch your public GitHub activity for report generation.
+        </p>
+
+        {isLoading ? (
+          <div className="h-8 w-48 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+        ) : connected && conn ? (
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <span className="text-sm text-gray-700 dark:text-gray-200">
+                Connected as{" "}
+                <span className="font-medium">@{conn.github_username}</span>
+              </span>
+            </div>
+            <button
+              onClick={() => disconnectMutation.mutate()}
+              disabled={disconnectMutation.isPending}
+              className="text-sm text-red-600 hover:text-red-500 disabled:opacity-50 transition-colors"
+            >
+              {disconnectMutation.isPending ? "Disconnecting…" : "Disconnect"}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => connectMutation.mutate()}
+            disabled={connectMutation.isPending}
+            className="text-sm px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg font-medium hover:bg-gray-700 dark:hover:bg-gray-100 disabled:opacity-50 transition-colors"
+          >
+            {connectMutation.isPending ? "Redirecting…" : "Connect GitHub"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
