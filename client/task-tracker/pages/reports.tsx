@@ -75,6 +75,44 @@ function StatusBadge({ status }: { status: ReportSummary["status"] }) {
   return <span className={styles[status]}>{status}</span>;
 }
 
+function toDateString(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+function getPresetRange(preset: "last-week" | "last-month" | "last-30-days") {
+  const today = new Date();
+
+  if (preset === "last-week") {
+    const day = today.getDay(); // 0=Sun
+    const daysToThisMonday = day === 0 ? 6 : day - 1;
+    const thisMonday = new Date(today);
+    thisMonday.setDate(today.getDate() - daysToThisMonday);
+    const lastMonday = new Date(thisMonday);
+    lastMonday.setDate(thisMonday.getDate() - 7);
+    const lastSunday = new Date(thisMonday);
+    lastSunday.setDate(thisMonday.getDate() - 1);
+    return { start: toDateString(lastMonday), end: toDateString(lastSunday) };
+  }
+
+  if (preset === "last-month") {
+    const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const last = new Date(today.getFullYear(), today.getMonth(), 0);
+    return { start: toDateString(first), end: toDateString(last) };
+  }
+
+  // last-30-days
+  const end = new Date(today);
+  const start = new Date(today);
+  start.setDate(today.getDate() - 30);
+  return { start: toDateString(start), end: toDateString(end) };
+}
+
+const DATE_PRESETS = [
+  { label: "Last week", value: "last-week" },
+  { label: "Last month", value: "last-month" },
+  { label: "Last 30 days", value: "last-30-days" },
+] as const;
+
 function CreateReportDialog() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -123,6 +161,27 @@ function CreateReportDialog() {
           <DialogTitle>Generate report</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
+          <div className="flex gap-2">
+            {DATE_PRESETS.map(({ label, value }) => {
+              const range = getPresetRange(value);
+              const active = periodStart === range.start && periodEnd === range.end;
+              return (
+                <Button
+                  key={value}
+                  type="button"
+                  variant={active ? "default" : "outline"}
+                  size="sm"
+                  className="flex-1 text-xs"
+                  onClick={() => {
+                    setPeriodStart(range.start);
+                    setPeriodEnd(range.end);
+                  }}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label htmlFor="start">Start date</Label>
