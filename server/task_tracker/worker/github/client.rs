@@ -31,11 +31,11 @@ impl GithubClient {
         Self { token, http }
     }
 
-    /// Fetch a single page of the authenticated user's public events.
+    /// Fetch a single page of the authenticated user's events (public and private).
     /// Returns an empty vec on 304 Not Modified.
     pub async fn fetch_events_page(&self, username: &str, page: u32) -> Result<Vec<RawEvent>, WorkerError> {
         let url = format!(
-            "https://api.github.com/users/{}/events/public?per_page=30&page={}",
+            "https://api.github.com/users/{}/events?per_page=30&page={}",
             username, page
         );
 

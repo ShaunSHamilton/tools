@@ -33,7 +33,7 @@ pub async fn connect_start(
 
     let redirect_uri = format!("{}/api/github/connect/callback", state.config.app_base_url);
     let url = format!(
-        "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope=public_repo&state={}",
+        "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope=repo&state={}",
         state.config.github_client_id,
         urlencoding::encode(&redirect_uri),
         urlencoding::encode(&connect_state),
