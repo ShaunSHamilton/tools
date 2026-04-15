@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-04-15
+
+### Added
+
+- feat(client): add date range presets to report generation dialog
+
+### Fixed
+
+- fix(server): include private repo events in github report generation
+
 ## [0.10.2] - 2026-04-06
 
 ### Added
