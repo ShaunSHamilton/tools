@@ -1,8 +1,7 @@
 steps:
-  smoke:
-    image: alpine:3.20
+  docker_build:
+    image: docker:27-cli
     commands:
-      - echo "Woodpecker is alive"
-      - uname -a
-      - pwd
-      - ls -la
+      - docker build . --file Dockerfile --tag test-image:${CI_COMMIT_SHA}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
