@@ -1,0 +1,8 @@
+steps:
+  smoke:
+    image: alpine:3.20
+    commands:
+      - echo "Woodpecker is alive"
+      - uname -a
+      - pwd
+      - ls -la
